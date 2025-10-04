@@ -143,9 +143,11 @@ stack_err_t stack_pop(stack_t* stk, stack_data_t* val)
             STACK_DUMP(stk, err, "passed null-pointer for return value");
             return err;
         }
+
+        STACK_DUMP(stk, err, "");
     );
 
-    *val = stk->buffer[CANARY_INDEX(stk->size--)];
+    *val = stk->buffer[CANARY_INDEX(stk->size--) - 1];
 
     if((double)stk->size / (double)stk->capacity <= CAPACITY_SHRINK_FRACTION) {
         err = _stack_realloc(stk, stk->capacity / CAPACITY_EXP);

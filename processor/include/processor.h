@@ -2,29 +2,17 @@
 
 #include <stdio.h>
 
+#include "commands.h"
+
 typedef enum processor_err_t
 {
     PROCESSOR_ERR_NONE,
-    PROCESSOR_ERR_PARSE_ERR
+    PROCESSOR_ERR_PARSE_ERR,
+    PROCESSOR_ERR_EOF,
+    PROCESSOR_ERR_ALLOC_FAIL,
+    PROCESSOR_ERR_CMD_STACK_ERR
 } processor_err_t;
 
-typedef int bytecode_t;
-typedef int cmdarg_t;
+processor_err_t processor_load(FILE* file, command_data_t** cmdbuf, size_t* cmdbuf_size);
 
-typedef struct cmd_callback_ret_t
-{
-    cmdarg_t value;
-    int code;
-} cmd_callback_ret_t;
-
-typedef cmd_callback_ret_t (*cmd_callback)(cmdarg_t, cmdarg_t);
-
-typedef struct command_t
-{
-    const char* name;
-    bytecode_t code;
-    size_t arg_cnt;
-    cmd_callback callback;
-} command_t;
-
-processor_err_t processor_run(FILE* file, bytecode_t* bytecode, command_t* cmdarr, size_t cmdarr_size);
+processor_err_t processor_run(command_data_t *cmdbuf, size_t cmdbuf_size, const command_t* cmdarr, size_t cmdarr_size);

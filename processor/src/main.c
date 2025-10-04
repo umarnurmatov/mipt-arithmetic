@@ -1,26 +1,16 @@
 #include <stdlib.h>
 
+#include "commands.h"
 #include "processor.h"
 #include "optutils.h"
 #include "logutils.h"
 #include "colorutils.h"
 #include "ioutils.h"
-#include "callbacks.h"
+#include "memutils.h"
 
 static utils_long_opt_t long_opts[] = 
 {
     { OPT_ARG_REQUIRED, "in", NULL, 0, 0 },
-};
-
-static const command_t commands[] = 
-{
-    { "ADD",  0x00, 2, cmd_add },
-    { "SUB",  0x01, 2, cmd_sub },
-    { "DIV",  0x02, 2 },
-    { "MUL",  0x03, 2 },
-    { "SQRT", 0x04, 1 },
-    { "HLT",  0x05, 0 },
-    { "OUT",  0x06, 1 }
 };
 
 int main(int argc, char* argv[])
@@ -38,7 +28,15 @@ int main(int argc, char* argv[])
     if(input_file == NULL)
         return EXIT_FAILURE;
 
+    command_data_t* cmdbuf = NULL;
+    size_t cmdbuf_size = 0;
+
+    processor_load(input_file, &cmdbuf, &cmdbuf_size);
+    processor_run(cmdbuf, cmdbuf_size, commands, SIZEOF(commands));
+
     fclose(input_file);
+
+    NFREE(cmdbuf);
 
     utils_end_log();
 
