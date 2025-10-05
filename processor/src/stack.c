@@ -48,7 +48,7 @@ const stack_data_t CANARY_END   = (stack_data_t)0xDEADC0DE;
 #endif // _DEBUG
 
 static const size_t CAPACITY_EXP             = 2;
-static const double CAPACITY_SHRINK_FRACTION = 0.3f;
+static const double CAPACITY_SHRINK_FRACTION = 0.25f;
 
 stack_err_t _stack_realloc(stack_t* stk, size_t capacity);
 
@@ -143,23 +143,21 @@ stack_err_t stack_pop(stack_t* stk, stack_data_t* val)
             STACK_DUMP(stk, err, "passed null-pointer for return value");
             return err;
         }
-
-        STACK_DUMP(stk, err, "");
     );
 
     *val = stk->buffer[CANARY_INDEX(stk->size--) - 1];
 
-    if((double)stk->size / (double)stk->capacity <= CAPACITY_SHRINK_FRACTION) {
-        err = _stack_realloc(stk, stk->capacity / CAPACITY_EXP);
-        if(err != STACK_ERR_NONE) {
-            IF_DEBUG(STACK_DUMP(stk, err, ""));
-            return err;
-        }
-
-        IF_DEBUG(
-            _stack_recalc_hashsum(stk);
-        );
-    }
+    // if((double)stk->size / (double)stk->capacity <= CAPACITY_SHRINK_FRACTION) {
+    //     err = _stack_realloc(stk, stk->capacity / CAPACITY_EXP);
+    //     if(err != STACK_ERR_NONE) {
+    //         IF_DEBUG(STACK_DUMP(stk, err, ""));
+    //         return err;
+    //     }
+    //
+    //     IF_DEBUG(
+    //         _stack_recalc_hashsum(stk);
+    //     );
+    // }
 
     return err;
 }

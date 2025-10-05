@@ -7,6 +7,7 @@
 #include "commands.h"
 #include "ioutils.h"
 #include "logutils.h"
+#include "utils.h"
 #include "stack.h"
 
 static STACK_MAKE(cmd_stack);
@@ -21,13 +22,31 @@ processor_err_t processor_load(FILE* file, command_data_t** cmdbuf, size_t* cmdb
     command_data_t* cmdbuf_tmp =
         (command_data_t*)calloc(1, file_size_b);
 
-    if(cmdbuf_tmp == NULL)
+    if(cmdbuf_tmp == NULL) {
+        utils_log(
+            LOG_LEVEL_ERR, 
+            "failed to allocate command buffer"
+        );
         return PROCESSOR_ERR_ALLOC_FAIL;
+    }
+
+    if(file_size_b % sizeof cmdbuf_tmp[0] != 0) {
+        utils_log(
+            LOG_LEVEL_ERR, 
+            "file size [%lu] is not multiple of cmd size [%lu]",
+            file_size_b,
+            sizeof cmdbuf_tmp[0]
+        );
+        return PROCESSOR_ERR_PARSE_ERR;
+    }
 
     *cmdbuf      = cmdbuf_tmp;
-    *cmdbuf_size = file_size_b / sizeof(cmdbuf_tmp[0]);
+    *cmdbuf_size = file_size_b / sizeof cmdbuf_tmp[0];
 
-    fread(*cmdbuf, sizeof(cmdbuf[0]), *cmdbuf_size, file);
+    size_t bytes_rd = fread(cmdbuf_tmp, sizeof(cmdbuf[0]), *cmdbuf_size, file);
+
+    if(bytes_rd < *cmdbuf_size)
+        return PROCESSOR_ERR_READ_ERR;
 
     return PROCESSOR_ERR_NONE;
 }
@@ -50,7 +69,14 @@ processor_err_t processor_run(command_data_t *cmdbuf, size_t cmdbuf_size, const 
 
     for( ;; ) {
         cmdcode = cmdbuf[cmdbuf_ind++];
-        printf("%d: ", cmdcode);
+
+        if((unsigned)cmdcode >= cmdarr_size) {
+            utils_log(
+                LOG_LEVEL_ERR,
+                "unknown command occured"
+            );
+            return PROCESSOR_ERR_CMD_UNKNOWN;
+        }
         
         if     (cmdarr[cmdcode].arg_cnt == 2) {
             cmdarg_a = cmdbuf[cmdbuf_ind++];
@@ -59,15 +85,20 @@ processor_err_t processor_run(command_data_t *cmdbuf, size_t cmdbuf_size, const 
         else if(cmdarr[cmdcode].arg_cnt == 1)
             cmdarg_a = cmdbuf[cmdbuf_ind++];
 
-        printf("%d %d\n", cmdarg_a, cmdarg_b);
-        
-        cmd_callback_ret_t ret = cmdarr[cmdcode].callback(cmdarg_a, cmdarg_b);
+        cmd_callback_ret_t ret = 
+            cmdarr[cmdcode].callback(cmdarg_a, cmdarg_b);
 
         if(ret == CMD_CALLBACK_HALT)
             break;
 
-        // if(cmdbuf_ind >= cmdbuf_size)
-        //     utils_printf(
+        if(cmdbuf_ind >= cmdbuf_size) {
+            utils_log(
+                LOG_LEVEL_WARN, 
+                "buffer end reached before programm halt"
+            );
+            return PROCESSOR_ERR_END_OF_BUFFER;
+        }
+
     }
 
     stack_dtor(&cmd_stack);
@@ -75,13 +106,15 @@ processor_err_t processor_run(command_data_t *cmdbuf, size_t cmdbuf_size, const 
     return PROCESSOR_ERR_NONE;
 }
 
-cmd_callback_ret_t cmd_push(command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_push(            command_data_t a, ATTR_UNUSED command_data_t b) 
+{
     stack_push(&cmd_stack, a);
 
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_add (command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_add (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&cmd_stack, &lhs);
     stack_pop (&cmd_stack, &rhs);
@@ -90,16 +123,18 @@ cmd_callback_ret_t cmd_add (command_data_t a, command_data_t b) {
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_sub (command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_sub (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
     stack_data_t lhs = 0, rhs = 0;
-    stack_pop (&cmd_stack, &lhs);
     stack_pop (&cmd_stack, &rhs);
+    stack_pop (&cmd_stack, &lhs);
     stack_push(&cmd_stack, lhs - rhs);
 
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_mul (command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_mul (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&cmd_stack, &lhs);
     stack_pop (&cmd_stack, &rhs);
@@ -108,7 +143,8 @@ cmd_callback_ret_t cmd_mul (command_data_t a, command_data_t b) {
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_div (command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_div (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&cmd_stack, &lhs);
     stack_pop (&cmd_stack, &rhs);
@@ -117,19 +153,22 @@ cmd_callback_ret_t cmd_div (command_data_t a, command_data_t b) {
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_sqr (command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_sqr (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
     stack_data_t val = 0;
     stack_pop (&cmd_stack, &val);
-    stack_push(&cmd_stack, (stack_data_t)sqrt(val));
+    stack_push(&cmd_stack, (stack_data_t)sqrtf(val));
 
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_hlt (command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_hlt (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
     return CMD_CALLBACK_HALT;
 }
 
-cmd_callback_ret_t cmd_out (command_data_t a, command_data_t b) {
+cmd_callback_ret_t cmd_out (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
     stack_data_t val = 0;
     stack_pop (&cmd_stack, &val);
     printf("%d\n", val);

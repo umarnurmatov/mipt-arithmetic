@@ -4,14 +4,14 @@
 #include <string.h>
 
 #include "assertutils.h"
-#include "utils.h"
+#include "commands.h"
+#include "logutils.h"
 
-static const size_t MAX_CMD_LENGTH  = 20;
-static const size_t MAX_CMD_ARG_CNT = 3;
+static const size_t MAX_CMD_LENGTH = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 
 static const command_t* _assembler_match_cmd(const char* name, const command_t* cmdarr, size_t cmdcnt);
 
-assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t* cmdarr, size_t cmdarr_size, bytecode_t** cmdbuf, size_t* cmdbuf_size)
+assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t* cmdarr, size_t cmdarr_size, command_data_t** cmdbuf, size_t* cmdbuf_size)
 {
     utils_assert(filearr);
     utils_assert(cmdarr);
@@ -22,46 +22,55 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
     fileline_t* line = NULL;
 
     size_t cmdbuf_tmp_size = filearr->lcnt * (MAX_CMD_ARG_CNT + 1);
-    bytecode_t* cmdbuf_tmp = (bytecode_t*)calloc(cmdbuf_tmp_size, sizeof(cmdbuf[0]));
-    if(cmdbuf_tmp == NULL)
+    command_data_t* cmdbuf_tmp = (command_data_t*)calloc(cmdbuf_tmp_size, sizeof(cmdbuf[0]));
+    if(cmdbuf_tmp == NULL) {
+        utils_log(LOG_LEVEL_ERR, "failed to allocate command buffer");
         return ASSEMBLER_ERR_ALLOC_FAIL;
+    }
     
     size_t cmdbuf_i = 0;
-    int bytes_rd = 0;
+    int    bytes_rd = 0;
+
     for(size_t line_i = 0; line_i < filearr->lcnt; ++line_i) {
         line = fileline_arr_get(filearr, line_i);
 
         if(line == NULL)
             return ASSEMBLER_ERR_PARSE_FAIL;
-        if(sscanf(line->str, "%s%n", cmdstr, &bytes_rd) != 2)
+        if(sscanf(line->str, "%s%n", cmdstr, &bytes_rd) != 1) {
+            utils_log(LOG_LEVEL_ERR, "sscanf() failed");
             return ASSEMBLER_ERR_PARSE_FAIL;
+        }
 
         const command_t* cmd = 
             _assembler_match_cmd(cmdstr, cmdarr, cmdarr_size);
         
-        if(cmd == NULL)
+        if(cmd == NULL) {
+            utils_log(LOG_LEVEL_ERR, "unknown command %s", cmdstr);
             return ASSEMBLER_ERR_CMD_UNKNOWN;
+        }
 
-        utils_assert(cmd->arg_cnt > MAX_CMD_ARG_CNT);
+        utils_assert(cmd->arg_cnt < MAX_CMD_ARG_CNT);
 
         cmdbuf_tmp[cmdbuf_i++] = cmd->code;
         
-        bytecode_t cmdarg = 0;
-        char* cmdstr_ptr = cmdstr + bytes_rd;
+        command_data_t cmdarg = 0;
+        char*          argstr = line->str + bytes_rd;
         for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
-            if(sscanf(cmdstr_ptr, "%d%n", &cmdarg, &bytes_rd) != 1)
+            if(sscanf(argstr, "%d%n", &cmdarg, &bytes_rd) != 1) {
+                utils_log(LOG_LEVEL_ERR, "parsing failed");
                 return ASSEMBLER_ERR_PARSE_FAIL;
+            }
             cmdbuf_tmp[cmdbuf_i++] = cmdarg;
-            cmdstr_ptr += bytes_rd;
+            argstr += bytes_rd;
         } 
     }
     
-    *cmdbuf_size = cmdbuf_tmp_size;
+    *cmdbuf_size = cmdbuf_i;
     *cmdbuf      = cmdbuf_tmp;
 
     return ASSEMBLER_ERR_NONE;
 }
-assembler_err_t assembler_write_to_file(FILE* file, bytecode_t* cmdbuf, size_t cmdbuf_size)
+assembler_err_t assembler_write_to_file(FILE* file, command_data_t* cmdbuf, size_t cmdbuf_size)
 {
     utils_assert(file);
     utils_assert(cmdbuf);
