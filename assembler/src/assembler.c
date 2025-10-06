@@ -62,6 +62,8 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
     *cmdbuf_size = (size_t)(cmdbuf_tmp_ptr - cmdbuf_tmp);
     *cmdbuf      = cmdbuf_tmp;
 
+    printf("%d\n", *cmdbuf_size);
+
     return ASSEMBLER_ERR_NONE;
 }
 assembler_err_t assembler_write_to_file(FILE* file, command_data_t* cmdbuf, size_t cmdbuf_size)
@@ -107,8 +109,8 @@ static const command_t* _assembler_match_cmd(const char* name, const command_t* 
 
 static assembler_err_t _assembler_write_metainfo(command_data_t** cmdbuf_ptr)
 {
-    *(++(*cmdbuf_ptr)) = SIGNATURE;
-    *(++(*cmdbuf_ptr)) = BYTECODE_VERSION;
+    *((*cmdbuf_ptr)++) = SIGNATURE;
+    *((*cmdbuf_ptr)++) = BYTECODE_VERSION;
 
     return ASSEMBLER_ERR_NONE;
 }
@@ -136,7 +138,7 @@ static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmda
         return ASSEMBLER_ERR_CMD_UNKNOWN;
     }
 
-    *(++(*cmdbuf_ptr)) = cmd_tmp->code;
+    *((*cmdbuf_ptr)++) = cmd_tmp->code;
 
     *cmd =  cmd_tmp;
     *str += bytes_rd;
@@ -158,7 +160,7 @@ static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t
             utils_log(LOG_LEVEL_ERR, "parsing failed");
             return ASSEMBLER_ERR_PARSE_FAIL;
         }
-        *(++(*cmdbuf_ptr)) =  cmdarg;
+        *((*cmdbuf_ptr)++) =  cmdarg;
         *str               += bytes_rd;
     } 
 
