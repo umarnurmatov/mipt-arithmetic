@@ -10,13 +10,10 @@
 #include "utils.h"
 #include "stack.h"
 
-static STACK_MAKE(cmd_stack);
-
-processor_err_t processor_load(FILE* file, command_data_t** cmdbuf, size_t* cmdbuf_size)
+processor_err_t processor_ctor(FILE* file, processor_t* processor)
 {
     utils_assert(file);
-    utils_assert(cmdbuf);
-    utils_assert(cmdbuf_size);
+    utils_assert(processor);
 
     size_t file_size_b = get_file_size(file);
     command_data_t* cmdbuf_tmp =
@@ -40,12 +37,18 @@ processor_err_t processor_load(FILE* file, command_data_t** cmdbuf, size_t* cmdb
         return PROCESSOR_ERR_PARSE_ERR;
     }
 
-    *cmdbuf      = cmdbuf_tmp;
-    *cmdbuf_size = file_size_b / sizeof cmdbuf_tmp[0];
+    processor->cmdbuf      = cmdbuf_tmp;
+    processor->cmdbuf_size = file_size_b / sizeof cmdbuf_tmp[0];
 
-    size_t bytes_rd = fread(cmdbuf_tmp, sizeof(cmdbuf[0]), *cmdbuf_size, file);
+    size_t bytes_rd = 
+        fread(
+            cmdbuf_tmp, 
+            sizeof(processor->cmdbuf[0]), 
+            processor->cmdbuf_size, 
+            file
+        );
 
-    if(bytes_rd < *cmdbuf_size)
+    if(bytes_rd < processor->cmdbuf_size)
         return PROCESSOR_ERR_READ_ERR;
 
     return PROCESSOR_ERR_NONE;

@@ -28,15 +28,18 @@ int main(int argc, char* argv[])
     if(input_file == NULL)
         return EXIT_FAILURE;
 
-    command_data_t* cmdbuf = NULL;
-    size_t cmdbuf_size = 0;
+    processor_t processor = {
+        .STACK_INITLIST(stack),
+        .cmdbuf = NULL,
+        .cmdbuf_size = 0
+    };
 
-    processor_load(input_file, &cmdbuf, &cmdbuf_size);
-    processor_run(cmdbuf, cmdbuf_size, commands, SIZEOF(commands));
+    processor_ctor(input_file, &processor);
+    processor_run(processor.cmdbuf, processor.cmdbuf_size, commands, SIZEOF(commands));
 
     fclose(input_file);
 
-    NFREE(cmdbuf);
+    NFREE(processor.cmdbuf);
 
     utils_end_log();
 

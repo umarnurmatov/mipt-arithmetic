@@ -25,6 +25,6 @@ typedef struct processor_t
     size_t cmdbuf_size;
 } processor_t;
 
-processor_err_t processor_load(FILE* file, command_data_t** cmdbuf, size_t* cmdbuf_size);
+processor_err_t processor_ctor(FILE* file, processor_t* proc);
 
-processor_err_t processor_run(command_data_t *cmdbuf, size_t cmdbuf_size, const command_t* cmdarr, size_t cmdarr_size);
+processor_err_t processor_run(processor_t* proc, const command_t* cmdarr, size_t cmdarr_size);
