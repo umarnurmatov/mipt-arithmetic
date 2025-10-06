@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "commands.h"
+#include "stack.h"
 
 const command_data_t BYTECODE_VERSION = 0x00000001;
 
@@ -16,6 +17,13 @@ typedef enum processor_err_t
     PROCESSOR_ERR_CMD_STACK_ERR,
     PROCESSOR_ERR_CMD_UNKNOWN
 } processor_err_t;
+
+typedef struct processor_t
+{
+    stack_t stack;
+    command_data_t* cmdbuf;
+    size_t cmdbuf_size;
+} processor_t;
 
 processor_err_t processor_load(FILE* file, command_data_t** cmdbuf, size_t* cmdbuf_size);
 
