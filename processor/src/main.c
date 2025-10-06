@@ -34,12 +34,14 @@ int main(int argc, char* argv[])
         .cmdbuf_size = 0
     };
 
-    processor_ctor(input_file, &processor);
-    processor_run(processor.cmdbuf, processor.cmdbuf_size, commands, SIZEOF(commands));
+    if(processor_ctor(&processor, input_file) != PROCESSOR_ERR_NONE)
+        abort();
 
     fclose(input_file);
 
-    NFREE(processor.cmdbuf);
+    processor_run(&processor, commands, SIZEOF(commands));
+
+    processor_dtor(&processor);
 
     utils_end_log();
 
