@@ -38,6 +38,11 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
     char*             str_ptr       = NULL;
 
     assembler_err_t err = ASSEMBLER_ERR_NONE;
+
+    err = _assembler_write_metainfo(&cmdbuf_tmp_ptr);
+    if(err != ASSEMBLER_ERR_NONE)
+        return err;
+
     for(size_t line_i = 0; line_i < filearr->lcnt; ++line_i) {
         line = fileline_arr_get(filearr, line_i);
 
