@@ -9,6 +9,8 @@ const size_t MAX_CMD_ARG_CNT = 2;
 
 typedef int32_t command_data_t;
 
+const command_data_t SIGNATURE = (command_data_t)0xd1dfaedf;
+
 typedef enum command_type_t
 {
     COMMAND_TYPE_ARITHMETIC_BINARY,
