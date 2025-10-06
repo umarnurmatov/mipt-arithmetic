@@ -20,6 +20,19 @@
         }                             \
     }
 
+#define STACK_INITLIST(VARNAME)       \
+    VARNAME = {                       \
+        .buffer   = NULL,             \
+        .size     = 0,                \
+        .capacity = 0,                \
+        .varinfo = {                  \
+            .line     = __LINE__,     \
+            .filename = __FILE__,     \
+            .funcname = __func__,     \
+            .varname  = ""#VARNAME""  \
+        }                             \
+    }
+
 #define IF_DEBUG(statement) statement
 
 #else
