@@ -10,6 +10,8 @@
 static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 static const size_t METAINFO_LENGTH = 2;
 
+static assembler_err_t _assembler_write_metainfo(command_data_t** cmdbuf_ptr);
+
 static const command_t* _assembler_match_cmd(const char* name, const command_t* cmdarr, size_t cmdcnt);
 
 static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str);
@@ -96,6 +98,14 @@ static const command_t* _assembler_match_cmd(const char* name, const command_t* 
         if(!strncmp(cmdarr[cmdi].name, name, MAX_CMD_LENGTH))
             return &cmdarr[cmdi];
     return NULL;
+}
+
+static assembler_err_t _assembler_write_metainfo(command_data_t** cmdbuf_ptr)
+{
+    *(++(*cmdbuf_ptr)) = SIGNATURE;
+    *(++(*cmdbuf_ptr)) = BYTECODE_VERSION;
+
+    return ASSEMBLER_ERR_NONE;
 }
 
 static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str)
