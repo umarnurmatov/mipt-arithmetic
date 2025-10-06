@@ -15,6 +15,16 @@ static const size_t METAINFO_LENGTH = 2;
 
 processor_err_t _processor_verify_metadata(processor_t* proc);
 
+void processor_set_err(processor_err_t err, processor_err_t err_new)
+{
+    err = (processor_err_t)(err | err_new);
+} 
+
+int processor_is_err(processor_err_t err, processor_err_t is_set)
+{
+    return err & is_set;
+}
+
 processor_err_t processor_ctor(processor_t* proc, FILE* file)
 {
     utils_assert(file);
@@ -124,6 +134,11 @@ void processor_dtor(processor_t* proc)
 {
     stack_dtor(&proc->stack);
     NFREE(proc->cmdbuf);
+}
+
+void processor_dump(processor_t* proc)
+{
+    
 }
 
 processor_err_t _processor_verify_metadata(processor_t* proc)
