@@ -11,6 +11,18 @@
 #include "utils.h"
 #include "stack.h"
 
+#define FPRINTRED(fmt, ...) \
+    utils_colored_fprintf(stderr, ANSI_COLOR_RED, fmt, __VA_ARGS__)
+
+#define FPRINTBLUE(fmt, ...) \
+    utils_colored_fprintf(stderr, ANSI_COLOR_BLUE, fmt, __VA_ARGS__)
+
+#define FPRINTRED_N(fmt) \
+    utils_colored_fprintf(stderr, ANSI_COLOR_RED, fmt)
+
+#define FPRINTBLUE_N(fmt) \
+    utils_colored_fprintf(stderr, ANSI_COLOR_BLUE, fmt)
+
 static const size_t METAINFO_LENGTH = 2;
 
 processor_err_t _processor_verify_metadata(processor_t* proc);
@@ -136,9 +148,15 @@ void processor_dtor(processor_t* proc)
     NFREE(proc->cmdbuf);
 }
 
-void processor_dump(processor_t* proc)
+void processor_dump(processor_t* proc, processor_err_t err)
 {
     
+    for(size_t bufi = 0; bufi < proc->cmdbuf_size; ++bufi)
+    {
+        FPRINTRED("%x ", proc->cmdbuf[bufi]);
+        if(bufi % 4 == 0)
+            FPRINTRED_N("\n");
+    }
 }
 
 processor_err_t _processor_verify_metadata(processor_t* proc)

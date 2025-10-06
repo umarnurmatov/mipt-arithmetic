@@ -12,6 +12,8 @@ typedef int32_t command_data_t;
 
 const command_data_t SIGNATURE = (command_data_t)0xd1dfaedf;
 
+struct processor_t;
+
 typedef enum command_type_t
 {
     COMMAND_TYPE_ARITHMETIC_BINARY,
@@ -25,7 +27,7 @@ typedef enum cmd_callback_ret_t
     CMD_CALLBACK_CONTINUE
 } cmd_callback_ret_t;
 
-typedef cmd_callback_ret_t (*cmd_callback)(command_data_t, command_data_t);
+typedef cmd_callback_ret_t (*cmd_callback)(processor_t* proc, command_data_t, command_data_t);
 
 typedef struct command_t
 {
@@ -43,14 +45,14 @@ typedef struct processor_t
     size_t cmdbuf_size;
 } processor_t;
 
-extern cmd_callback_ret_t cmd_push(            command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_add (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_sub (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_mul (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_div (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_sqr (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_out (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_hlt (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_push(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_add (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_sub (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_mul (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_div (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_sqr (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_out (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_ret_t cmd_hlt (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
 
 // TODO make validator
 const command_t commands[] = 
