@@ -21,8 +21,6 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
     utils_assert(cmdarr);
     utils_assert(cmdbuf_size);
 
-    char cmdstr[MAX_CMD_LENGTH] = "";
-    
     fileline_t* line = NULL;
 
     size_t cmdbuf_tmp_size = filearr->lcnt * (MAX_CMD_ARG_CNT + 1);
@@ -31,45 +29,29 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
         utils_log(LOG_LEVEL_ERR, "failed to allocate command buffer");
         return ASSEMBLER_ERR_ALLOC_FAIL;
     }
-    
-    size_t cmdbuf_i = 0;
-    int    bytes_rd = 0;
 
+    command_data_t* cmdbuf_tmp_ptr  = cmdbuf_tmp;
+    const command_t*  cmd           = NULL;
+    char*             str_ptr       = NULL;
+
+    assembler_err_t err = ASSEMBLER_ERR_NONE;
     for(size_t line_i = 0; line_i < filearr->lcnt; ++line_i) {
         line = fileline_arr_get(filearr, line_i);
 
         if(line == NULL)
             return ASSEMBLER_ERR_PARSE_FAIL;
-        if(sscanf(line->str, "%s%n", cmdstr, &bytes_rd) != 1) {
-            utils_log(LOG_LEVEL_ERR, "sscanf() failed");
-            return ASSEMBLER_ERR_PARSE_FAIL;
-        }
 
-        const command_t* cmd = 
-            _assembler_match_cmd(cmdstr, cmdarr, cmdarr_size);
-        
-        if(cmd == NULL) {
-            utils_log(LOG_LEVEL_ERR, "unknown command %s", cmdstr);
-            return ASSEMBLER_ERR_CMD_UNKNOWN;
-        }
+        str_ptr = line->str;
+        err = _assembler_parse_cmd(cmdarr, cmdarr_size, &cmd, &cmdbuf_tmp_ptr, &str_ptr);
+        if(err != ASSEMBLER_ERR_NONE)
+            return err;
 
-        utils_assert(cmd->arg_cnt < MAX_CMD_ARG_CNT);
-
-        cmdbuf_tmp[cmdbuf_i++] = cmd->code;
-        
-        command_data_t cmdarg = 0;
-        char*          argstr = line->str + bytes_rd;
-        for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
-            if(sscanf(argstr, "%d%n", &cmdarg, &bytes_rd) != 1) {
-                utils_log(LOG_LEVEL_ERR, "parsing failed");
-                return ASSEMBLER_ERR_PARSE_FAIL;
-            }
-            cmdbuf_tmp[cmdbuf_i++] = cmdarg;
-            argstr += bytes_rd;
-        } 
+        err = _assembler_parse_arg(cmd, &cmdbuf_tmp_ptr, &str_ptr);
+        if(err != ASSEMBLER_ERR_NONE)
+            return err;
     }
     
-    *cmdbuf_size = cmdbuf_i;
+    *cmdbuf_size = (size_t)(cmdbuf_tmp_ptr - cmdbuf_tmp);
     *cmdbuf      = cmdbuf_tmp;
 
     return ASSEMBLER_ERR_NONE;
