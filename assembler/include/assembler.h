@@ -3,6 +3,8 @@
 #include "commands.h"
 #include "fileline_arr.h"
 
+const command_data_t BYTECODE_VERSION = 0x00000001;
+
 typedef enum assembler_err_t
 {
     ASSEMBLER_ERR_NONE,
