@@ -11,6 +11,8 @@ static const size_t MAX_CMD_LENGTH = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 
 static const command_t* _assembler_match_cmd(const char* name, const command_t* cmdarr, size_t cmdcnt);
 
+static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str);
+
 assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t* cmdarr, size_t cmdarr_size, command_data_t** cmdbuf, size_t* cmdbuf_size)
 {
     utils_assert(filearr);
@@ -109,4 +111,35 @@ static const command_t* _assembler_match_cmd(const char* name, const command_t* 
         if(!strncmp(cmdarr[cmdi].name, name, MAX_CMD_LENGTH))
             return &cmdarr[cmdi];
     return NULL;
+}
+
+static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str)
+{
+    utils_assert(cmdarr);
+    utils_assert(cmd);
+    utils_assert(cmdbuf_ptr);
+    utils_assert(str);
+
+    static char cmdstr[MAX_CMD_LENGTH] = "";
+
+    int bytes_rd = 0;
+    if(sscanf(*str, "%s%n", cmdstr, &bytes_rd) != 1) {
+        utils_log(LOG_LEVEL_ERR, "sscanf() failed");
+        return ASSEMBLER_ERR_PARSE_FAIL;
+    }
+
+    const command_t* cmd_tmp = 
+        _assembler_match_cmd(cmdstr, cmdarr, cmdarr_size);
+    
+    if(cmd == NULL) {
+        utils_log(LOG_LEVEL_ERR, "unknown command %s", cmdstr);
+        return ASSEMBLER_ERR_CMD_UNKNOWN;
+    }
+
+    *(++(*cmdbuf_ptr)) = cmd_tmp->code;
+
+    *cmd =  cmd_tmp;
+    *str += bytes_rd;
+
+    return ASSEMBLER_ERR_NONE;
 }
