@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "utils.h"
+#include "stack.h"
 
 const size_t MAX_CMD_ARG_CNT = 2;
 
@@ -34,6 +35,13 @@ typedef struct command_t
     command_type_t cmd_type;
     cmd_callback   callback;
 } command_t;
+
+typedef struct processor_t
+{
+    stack_t stack;
+    command_data_t* cmdbuf;
+    size_t cmdbuf_size;
+} processor_t;
 
 extern cmd_callback_ret_t cmd_push(            command_data_t a, ATTR_UNUSED command_data_t b);
 extern cmd_callback_ret_t cmd_add (ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
