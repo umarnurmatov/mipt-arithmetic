@@ -7,7 +7,8 @@
 #include "commands.h"
 #include "logutils.h"
 
-static const size_t MAX_CMD_LENGTH = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
+static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
+static const size_t METAINFO_LENGTH = 2;
 
 static const command_t* _assembler_match_cmd(const char* name, const command_t* cmdarr, size_t cmdcnt);
 
@@ -23,7 +24,7 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
 
     fileline_t* line = NULL;
 
-    size_t cmdbuf_tmp_size = filearr->lcnt * (MAX_CMD_ARG_CNT + 1);
+    size_t cmdbuf_tmp_size = filearr->lcnt * (MAX_CMD_ARG_CNT + 1) + METAINFO_LENGTH;
     command_data_t* cmdbuf_tmp = (command_data_t*)calloc(cmdbuf_tmp_size, sizeof(cmdbuf[0]));
     if(cmdbuf_tmp == NULL) {
         utils_log(LOG_LEVEL_ERR, "failed to allocate command buffer");
