@@ -2,7 +2,7 @@
 BUILD_DIR    := build
 SRC_DIR      := src
 TEST_DIR     := test
-INCLUDE_DIRS := include /home/n1njaeng1neer/source/arithmetic/common
+INCLUDE_DIRS := include /home/n1njaeng1neer/source/arithmetic/common /home/n1njaeng1neer/source/arithmetic/processor/include
 LOG_DIR      := log
 EXECUTABLE   := assembler.out
 
