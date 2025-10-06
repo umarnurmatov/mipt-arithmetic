@@ -4,6 +4,8 @@
 
 #include "commands.h"
 
+const command_data_t BYTECODE_VERSION = 0x00000001;
+
 typedef enum processor_err_t
 {
     PROCESSOR_ERR_NONE         ,
