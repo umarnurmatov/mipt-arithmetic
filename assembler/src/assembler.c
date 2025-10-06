@@ -13,6 +13,8 @@ static const command_t* _assembler_match_cmd(const char* name, const command_t* 
 
 static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str);
 
+static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t** cmdbuf_ptr, char** str);
+
 assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t* cmdarr, size_t cmdarr_size, command_data_t** cmdbuf, size_t* cmdbuf_size)
 {
     utils_assert(filearr);
@@ -140,6 +142,27 @@ static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmda
 
     *cmd =  cmd_tmp;
     *str += bytes_rd;
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t** cmdbuf_ptr, char** str)
+{
+    utils_assert(cmd);
+    utils_assert(cmdbuf_ptr);
+    utils_assert(str);
+
+    command_data_t cmdarg = 0;
+    
+    int bytes_rd = 0;
+    for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
+        if(sscanf(*str, "%d%n", &cmdarg, &bytes_rd) != 1) {
+            utils_log(LOG_LEVEL_ERR, "parsing failed");
+            return ASSEMBLER_ERR_PARSE_FAIL;
+        }
+        *(++(*cmdbuf_ptr)) =  cmdarg;
+        *str               += bytes_rd;
+    } 
 
     return ASSEMBLER_ERR_NONE;
 }
