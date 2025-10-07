@@ -91,6 +91,8 @@ processor_err_t processor_ctor(processor_t* proc, FILE* file)
         return PROCESSOR_ERR_METADATA;
     }
 
+    proc->pc = METAINFO_LENGTH;
+
     command_data_t* regfile_tmp = (command_data_t*)calloc(SIZEOF(proc_regs), sizeof(command_data_t));
     if(regfile_tmp == NULL) {
         return PROCESSOR_ERR_ALLOC_FAIL;
@@ -110,10 +112,8 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
     command_data_t cmdarg_a = 0;
     command_data_t cmdarg_b = 0;
 
-    size_t cmdbuf_ind = METAINFO_LENGTH;
-
     for( ;; ) {
-        cmdcode = proc->cmdbuf[cmdbuf_ind++];
+        cmdcode = proc->cmdbuf[proc->pc++];
 
         if((unsigned)cmdcode >= cmdarr_size) {
             utils_log(
@@ -124,11 +124,11 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
         }
         
         if     (cmdarr[cmdcode].arg_cnt == 2) {
-            cmdarg_a = proc->cmdbuf[cmdbuf_ind++];
-            cmdarg_b = proc->cmdbuf[cmdbuf_ind++];
+            cmdarg_a = proc->cmdbuf[proc->pc++];
+            cmdarg_b = proc->cmdbuf[proc->pc++];
         }
         else if(cmdarr[cmdcode].arg_cnt == 1)
-            cmdarg_a = proc->cmdbuf[cmdbuf_ind++];
+            cmdarg_a = proc->cmdbuf[proc->pc++];
 
         cmd_callback_ret_t ret = 
             cmdarr[cmdcode].callback(proc, cmdarg_a, cmdarg_b);
@@ -136,7 +136,7 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
         if(ret == CMD_CALLBACK_HALT)
             break;
 
-        if(cmdbuf_ind >= proc->cmdbuf_size) {
+        if(proc->pc >= proc->cmdbuf_size) {
             utils_log(
                 LOG_LEVEL_WARN, 
                 "buffer end reached before programm halt"
@@ -208,11 +208,12 @@ cmd_callback_ret_t cmd_push(processor_t* proc,             command_data_t a, ATT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_pushr(processor_t* proc,             command_data_t a,             command_data_t b)
+cmd_callback_ret_t cmd_pushr(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
 {
     utils_assert((unsigned) a < SIZEOF(proc_regs));
 
-    proc->regfile[a] = b;
+    command_data_t regdata = proc->regfile[a];
+    stack_push(&proc->stack, regdata);
 
     return CMD_CALLBACK_CONTINUE;
 }
@@ -220,9 +221,10 @@ cmd_callback_ret_t cmd_pushr(processor_t* proc,             command_data_t a,   
 cmd_callback_ret_t cmd_popr (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
 {
     utils_assert((unsigned) a < SIZEOF(proc_regs));
-
-    command_data_t regdata = proc->regfile[a];
-    stack_push(&proc->stack, regdata);
+    
+    stack_data_t stkdata = 0;
+    stack_pop(&proc->stack, &stkdata);
+    proc->regfile[a] = stkdata;
 
     return CMD_CALLBACK_CONTINUE;
 }
@@ -271,7 +273,7 @@ cmd_callback_ret_t cmd_sqr (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
 {
     stack_data_t val = 0;
     stack_pop (&proc->stack, &val);
-    stack_push(&proc->stack, (stack_data_t)sqrtf(val));
+    stack_push(&proc->stack, (stack_data_t) sqrtf((float) val));
 
     return CMD_CALLBACK_CONTINUE;
 }
@@ -287,6 +289,105 @@ cmd_callback_ret_t cmd_out (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
     stack_pop (&proc->stack, &val);
     printf("%d\n", val);
     stack_push(&proc->stack, val);
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_jmp  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(a > 0);
+    utils_assert((size_t) a < proc->cmdbuf_size);
+
+    proc->pc = (size_t) a;
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_jb   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(a > 0);
+    utils_assert((size_t) a < proc->cmdbuf_size);
+
+    stack_data_t lhs = 0, rhs = 0;
+    stack_pop(&proc->stack, &rhs);
+    stack_pop(&proc->stack, &lhs);
+
+    if(lhs < rhs)
+        proc->pc = (size_t) a;
+
+    return CMD_CALLBACK_CONTINUE;
+}
+cmd_callback_ret_t cmd_jbe  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(a > 0);
+    utils_assert((size_t) a < proc->cmdbuf_size);
+
+    stack_data_t lhs = 0, rhs = 0;
+    stack_pop(&proc->stack, &rhs);
+    stack_pop(&proc->stack, &lhs);
+
+    if(lhs <= rhs)
+        proc->pc = (size_t) a;
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_ja   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(a > 0);
+    utils_assert((size_t) a < proc->cmdbuf_size);
+
+    stack_data_t lhs = 0, rhs = 0;
+    stack_pop(&proc->stack, &rhs);
+    stack_pop(&proc->stack, &lhs);
+
+    if(lhs > rhs)
+        proc->pc = (size_t) a;
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_jae  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(a > 0);
+    utils_assert((size_t) a < proc->cmdbuf_size);
+
+    stack_data_t lhs = 0, rhs = 0;
+    stack_pop(&proc->stack, &rhs);
+    stack_pop(&proc->stack, &lhs);
+
+    if(lhs >= rhs)
+        proc->pc = (size_t) a;
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_je   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(a > 0);
+    utils_assert((size_t) a < proc->cmdbuf_size);
+
+    stack_data_t lhs = 0, rhs = 0;
+    stack_pop(&proc->stack, &rhs);
+    stack_pop(&proc->stack, &lhs);
+
+    if(lhs == rhs)
+        proc->pc = (size_t) a;
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_jne  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(a > 0);
+    utils_assert((size_t) a < proc->cmdbuf_size);
+
+    stack_data_t lhs = 0, rhs = 0;
+    stack_pop(&proc->stack, &rhs);
+    stack_pop(&proc->stack, &lhs);
+
+    if(lhs != rhs)
+        proc->pc = (size_t) a;
 
     return CMD_CALLBACK_CONTINUE;
 }

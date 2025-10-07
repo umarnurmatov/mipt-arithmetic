@@ -167,8 +167,8 @@ static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t
 
     static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
     
+    // TODO add register name check
     int bytes_rd = 0;
-    // TODO extract sscanf to other func
     for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
         if(cmd->cmd_type == COMMAND_TYPE_REGISTER && arg_i == 0) {
             if(sscanf(*str, "%s%n", cmdstr, &bytes_rd) != 1) {
@@ -190,4 +190,5 @@ static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t
 
     return ASSEMBLER_ERR_NONE;
 }
-    
+
+
