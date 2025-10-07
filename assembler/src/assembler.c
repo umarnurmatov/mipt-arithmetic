@@ -13,10 +13,12 @@ static const size_t METAINFO_LENGTH = 2;
 static assembler_err_t _assembler_write_metainfo(command_data_t** cmdbuf_ptr);
 
 static const command_t* _assembler_match_cmd(const char* name, const command_t* cmdarr, size_t cmdcnt);
+static const proc_reg_t* _assembler_match_reg(char* regname);
 
 static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str);
 
 static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t** cmdbuf_ptr, char** str);
+
 
 assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t* cmdarr, size_t cmdarr_size, command_data_t** cmdbuf, size_t* cmdbuf_size)
 {
@@ -62,8 +64,6 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
     *cmdbuf_size = (size_t)(cmdbuf_tmp_ptr - cmdbuf_tmp);
     *cmdbuf      = cmdbuf_tmp;
 
-    printf("%d\n", *cmdbuf_size);
-
     return ASSEMBLER_ERR_NONE;
 }
 assembler_err_t assembler_write_to_file(FILE* file, command_data_t* cmdbuf, size_t cmdbuf_size)
@@ -104,6 +104,17 @@ static const command_t* _assembler_match_cmd(const char* name, const command_t* 
     for(size_t cmdi = 0; cmdi < cmdcnt; ++cmdi)
         if(!strncmp(cmdarr[cmdi].name, name, MAX_CMD_LENGTH))
             return &cmdarr[cmdi];
+    return NULL;
+}
+
+static const proc_reg_t* _assembler_match_reg(char* regname)
+{
+    utils_assert(regname);
+
+    for(size_t regi = 0; regi < SIZEOF(proc_regs); ++regi) {
+        if(!strcmp(proc_regs[regi].name, regname))
+            return &proc_regs[regi];
+    }
     return NULL;
 }
 
@@ -153,16 +164,30 @@ static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t
     utils_assert(str);
 
     command_data_t cmdarg = 0;
+
+    static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
     
     int bytes_rd = 0;
+    // TODO extract sscanf to other func
     for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
-        if(sscanf(*str, "%d%n", &cmdarg, &bytes_rd) != 1) {
-            utils_log(LOG_LEVEL_ERR, "parsing failed");
-            return ASSEMBLER_ERR_PARSE_FAIL;
+        if(cmd->cmd_type == COMMAND_TYPE_REGISTER && arg_i == 0) {
+            if(sscanf(*str, "%s%n", cmdstr, &bytes_rd) != 1) {
+                utils_log(LOG_LEVEL_ERR, "register name read err");
+                return ASSEMBLER_ERR_PARSE_FAIL;
+            }
+            cmdarg = _assembler_match_reg(cmdstr)->num;
         }
+        else {
+            if(sscanf(*str, "%d%n", &cmdarg, &bytes_rd) != 1) {
+                utils_log(LOG_LEVEL_ERR, "parsing failed");
+                return ASSEMBLER_ERR_PARSE_FAIL;
+            }
+        }
+
         *((*cmdbuf_ptr)++) =  cmdarg;
         *str               += bytes_rd;
     } 
 
     return ASSEMBLER_ERR_NONE;
 }
+    

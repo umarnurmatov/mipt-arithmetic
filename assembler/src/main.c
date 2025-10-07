@@ -46,6 +46,7 @@ int main(int argc, char* argv[])
     if(asm_err != ASSEMBLER_ERR_NONE) {
         utils_colored_fprintf(stderr, ANSI_COLOR_RED, "[ERROR] [ASM] %s\n", assembler_strerr(asm_err));
         NFREE(cmdbuf);
+        fileline_arr_free(&filearr);
         return EXIT_FAILURE;
     }
 

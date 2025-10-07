@@ -68,7 +68,7 @@ processor_err_t processor_ctor(processor_t* proc, FILE* file)
         );
         return PROCESSOR_ERR_PARSE_ERR;
     }
-
+    
     proc->cmdbuf      = cmdbuf_tmp;
     proc->cmdbuf_size = file_size_b / sizeof cmdbuf_tmp[0];
 
@@ -90,6 +90,13 @@ processor_err_t processor_ctor(processor_t* proc, FILE* file)
         );
         return PROCESSOR_ERR_METADATA;
     }
+
+    command_data_t* regfile_tmp = (command_data_t*)calloc(SIZEOF(proc_regs), sizeof(command_data_t));
+    if(regfile_tmp == NULL) {
+        return PROCESSOR_ERR_ALLOC_FAIL;
+    }
+
+    proc->regfile = regfile_tmp;
 
     return PROCESSOR_ERR_NONE;
 }
@@ -146,6 +153,7 @@ void processor_dtor(processor_t* proc)
 {
     stack_dtor(&proc->stack);
     NFREE(proc->cmdbuf);
+    NFREE(proc->regfile);
 }
 
 void processor_dump(processor_t* proc, processor_err_t err)
@@ -156,6 +164,30 @@ void processor_dump(processor_t* proc, processor_err_t err)
         FPRINTRED("%x ", proc->cmdbuf[bufi]);
         if(bufi % 4 == 0)
             FPRINTRED_N("\n");
+    }
+}
+
+const char * processor_strerr(processor_err_t onehot)
+{
+    switch(onehot) {
+        case PROCESSOR_ERR_NONE:
+            return "none";
+        case PROCESSOR_ERR_READ_ERR:
+            return "file read err";
+        case PROCESSOR_ERR_PARSE_ERR:
+            return "parse err";
+        case PROCESSOR_ERR_END_OF_BUFFER:
+            return "buffer end reached meeting no halt";
+        case PROCESSOR_ERR_ALLOC_FAIL:
+            return "buffer allocation fail";
+        case PROCESSOR_ERR_CMD_STACK_ERR:
+            return "stack err (see stack dump)";
+        case PROCESSOR_ERR_CMD_UNKNOWN:
+            return "unknown command";
+        case PROCESSOR_ERR_METADATA:
+            return "invalid metadata";
+        default:
+            return "unknown";
     }
 }
 
@@ -172,6 +204,25 @@ processor_err_t _processor_verify_metadata(processor_t* proc)
 cmd_callback_ret_t cmd_push(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_push(&proc->stack, a);
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_pushr(processor_t* proc,             command_data_t a,             command_data_t b)
+{
+    utils_assert((unsigned) a < SIZEOF(proc_regs));
+
+    proc->regfile[a] = b;
+
+    return CMD_CALLBACK_CONTINUE;
+}
+
+cmd_callback_ret_t cmd_popr (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert((unsigned) a < SIZEOF(proc_regs));
+
+    command_data_t regdata = proc->regfile[a];
+    stack_push(&proc->stack, regdata);
 
     return CMD_CALLBACK_CONTINUE;
 }

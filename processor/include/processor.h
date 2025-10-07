@@ -28,4 +28,6 @@ processor_err_t processor_run(processor_t* proc, const command_t* cmdarr, size_t
 
 void processor_dtor(processor_t* proc);
 
-void processor_dump(processor_t* proc);
+void processor_dump(processor_t* proc, processor_err_t err);
+
+const char * processor_strerr(processor_err_t onehot);
