@@ -4,70 +4,78 @@
 #include <math.h>
 
 #include "assertutils.h"
+#include "colorutils.h"
 #include "commands.h"
 #include "ioutils.h"
 #include "logutils.h"
 #include "memutils.h"
 #include "utils.h"
+#include "assertutils.h"
 #include "stack.h"
 
-#define FPRINTRED(fmt, ...) \
-    utils_colored_fprintf(stderr, ANSI_COLOR_RED, fmt, __VA_ARGS__)
+#ifdef _DEBUG
 
-#define FPRINTBLUE(fmt, ...) \
-    utils_colored_fprintf(stderr, ANSI_COLOR_BLUE, fmt, __VA_ARGS__)
+#define PROCESSOR_ASSERT_OK_OR_RETURN_ERR(proc, err)                           \
+    if((err = processor_vldtr(proc)) != PROCESSOR_ERR_NONE) {                  \
+        processor_dump(stderr, proc, err, "", __FILE__, __func__, __LINE__);   \
+        return err;                                                            \
+    }
 
-#define FPRINTRED_N(fmt) \
-    utils_colored_fprintf(stderr, ANSI_COLOR_RED, fmt)
+#define PROCESSOR_DUMP(proc, err, msg)                                         \
+        processor_dump(stderr, proc, err, msg, __FILE__, __func__, __LINE__);  \
 
-#define FPRINTBLUE_N(fmt) \
-    utils_colored_fprintf(stderr, ANSI_COLOR_BLUE, fmt)
+#define PROCESSOR_VERIFY_OK_OR_RETURN_ERR(expr, proc, err, msg)                \
+    if(!(expr)) {                                                              \
+        processor_dump(stderr, proc, err, msg, __FILE__, __func__, __LINE__);  \
+        return err;                                                            \
+    }
+
+#else
+
+#define PROCESSOR_VERIFY_OK_OR_RETURN_ERR(expr, proc, err, msg) \
+    if(!(expr)) {                                               \
+        return err;                                             \
+    }
+
+#endif // _DEBUG
 
 static const size_t METAINFO_LENGTH = 2;
 
+static const size_t PROCESSOR_DUMP_BYTES_PER_LINE = 4;
+
 processor_err_t _processor_verify_metadata(processor_t* proc);
-
-void processor_set_err(processor_err_t err, processor_err_t err_new)
-{
-    err = (processor_err_t)(err | err_new);
-} 
-
-int processor_is_err(processor_err_t err, processor_err_t is_set)
-{
-    return err & is_set;
-}
 
 processor_err_t processor_ctor(processor_t* proc, FILE* file)
 {
     utils_assert(file);
     utils_assert(proc);
 
-    if(stack_ctor(&proc->stack, 1) != STACK_ERR_NONE) {
-        utils_log(LOG_LEVEL_ERR, "failed to initialize command stack");
-        return PROCESSOR_ERR_CMD_STACK_ERR;
-    }
+    processor_err_t err = PROCESSOR_ERR_NONE;
+
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        stack_ctor(&proc->stack, 1) == STACK_ERR_NONE,
+        proc,
+        PROCESSOR_ERR_CMD_STACK_ERR,
+        ""
+    );
 
     size_t file_size_b = get_file_size(file);
     command_data_t* cmdbuf_tmp =
         (command_data_t*)calloc(1, file_size_b);
+    
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        cmdbuf_tmp != NULL, 
+        proc, 
+        PROCESSOR_ERR_ALLOC_FAIL, 
+        "error allocating command bufer"
+    );
 
-    if(cmdbuf_tmp == NULL) {
-        utils_log(
-            LOG_LEVEL_ERR, 
-            "failed to allocate command buffer"
-        );
-        return PROCESSOR_ERR_ALLOC_FAIL;
-    }
-
-    if(file_size_b % sizeof cmdbuf_tmp[0] != 0) {
-        utils_log(
-            LOG_LEVEL_ERR, 
-            "file size [%lu] is not multiple of cmd size [%lu]",
-            file_size_b,
-            sizeof cmdbuf_tmp[0]
-        );
-        return PROCESSOR_ERR_PARSE_ERR;
-    }
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        file_size_b % sizeof cmdbuf_tmp[0] == 0,
+        proc,
+        PROCESSOR_ERR_PARSE_ERR,
+        "file size is not multiple of cmd size"
+    );
     
     proc->cmdbuf      = cmdbuf_tmp;
     proc->cmdbuf_size = file_size_b / sizeof cmdbuf_tmp[0];
@@ -80,23 +88,30 @@ processor_err_t processor_ctor(processor_t* proc, FILE* file)
             file
         );
 
-    if(bytes_rd < proc->cmdbuf_size)
-        return PROCESSOR_ERR_READ_ERR;
-
-    if(_processor_verify_metadata(proc) != PROCESSOR_ERR_NONE) {
-        utils_log(
-            LOG_LEVEL_ERR, 
-            "bad metadata"
-        );
-        return PROCESSOR_ERR_METADATA;
-    }
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        bytes_rd >= proc->cmdbuf_size,
+        proc,
+        PROCESSOR_ERR_READ_ERR,
+        ""
+    );
+        
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        _processor_verify_metadata(proc) == PROCESSOR_ERR_NONE,
+        proc,
+        PROCESSOR_ERR_METADATA,
+        "bad metadata"
+    );
 
     proc->pc = METAINFO_LENGTH;
 
     command_data_t* regfile_tmp = (command_data_t*)calloc(SIZEOF(proc_regs), sizeof(command_data_t));
-    if(regfile_tmp == NULL) {
-        return PROCESSOR_ERR_ALLOC_FAIL;
-    }
+
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        cmdbuf_tmp != NULL, 
+        proc, 
+        PROCESSOR_ERR_ALLOC_FAIL, 
+        "error allocating register file"
+    );
 
     proc->regfile = regfile_tmp;
 
@@ -108,6 +123,10 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
     utils_assert(proc);
     utils_assert(cmdarr);
 
+    processor_err_t err = PROCESSOR_ERR_NONE;
+
+    PROCESSOR_ASSERT_OK_OR_RETURN_ERR(proc, err);
+
     command_data_t cmdcode  = 0;
     command_data_t cmdarg_a = 0;
     command_data_t cmdarg_b = 0;
@@ -115,13 +134,12 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
     for( ;; ) {
         cmdcode = proc->cmdbuf[proc->pc++];
 
-        if((unsigned)cmdcode >= cmdarr_size) {
-            utils_log(
-                LOG_LEVEL_ERR,
-                "unknown command occured"
-            );
-            return PROCESSOR_ERR_CMD_UNKNOWN;
-        }
+        PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+            cmdcode < (signed) cmdarr_size,
+            proc,
+            PROCESSOR_ERR_CMD_UNKNOWN,
+            ""
+        );
         
         if     (cmdarr[cmdcode].arg_cnt == 2) {
             cmdarg_a = proc->cmdbuf[proc->pc++];
@@ -136,13 +154,12 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
         if(ret == CMD_CALLBACK_HALT)
             break;
 
-        if(proc->pc >= proc->cmdbuf_size) {
-            utils_log(
-                LOG_LEVEL_WARN, 
-                "buffer end reached before programm halt"
-            );
-            return PROCESSOR_ERR_END_OF_BUFFER;
-        }
+        PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+            proc->pc < proc->cmdbuf_size,
+            proc,
+            PROCESSOR_ERR_END_OF_BUFFER,
+            ""
+        );
 
     }
 
@@ -156,15 +173,14 @@ void processor_dtor(processor_t* proc)
     NFREE(proc->regfile);
 }
 
-void processor_dump(processor_t* proc, processor_err_t err)
+void processor_set_err(processor_err_t err, processor_err_t err_new)
 {
-    
-    for(size_t bufi = 0; bufi < proc->cmdbuf_size; ++bufi)
-    {
-        FPRINTRED("%x ", proc->cmdbuf[bufi]);
-        if(bufi % 4 == 0)
-            FPRINTRED_N("\n");
-    }
+    err = (processor_err_t)(err | err_new);
+} 
+
+int processor_is_err(processor_err_t err, processor_err_t is_set)
+{
+    return err & is_set;
 }
 
 const char * processor_strerr(processor_err_t onehot)
@@ -186,6 +202,10 @@ const char * processor_strerr(processor_err_t onehot)
             return "unknown command";
         case PROCESSOR_ERR_METADATA:
             return "invalid metadata";
+        case PROCESSOR_ERR_CMDBUF_NULL:
+            return "command buffer is NULL";
+        case PROCESSOR_ERR_REGFILE_NULL:
+            return "register file buffer is NULL";
         default:
             return "unknown";
     }
@@ -200,6 +220,72 @@ processor_err_t _processor_verify_metadata(processor_t* proc)
 
     return PROCESSOR_ERR_NONE;
 }
+
+#ifdef _DEBUG
+
+processor_err_t processor_vldtr(processor_t* proc)
+{
+    processor_err_t err = PROCESSOR_ERR_NONE;
+    if(proc->cmdbuf == NULL)
+        processor_set_err(err, PROCESSOR_ERR_CMDBUF_NULL);
+
+    if(proc->regfile == NULL)
+        processor_set_err(err, PROCESSOR_ERR_REGFILE_NULL);
+
+    return err;
+}
+
+void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const char* msg, const char* file, const char* func, int line)
+{
+    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "========== stacktrace ==========\n");
+    utils_print_stacktrace(); 
+    fprintf(stream, "\n");
+
+    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "========== processor dump ==========\n\n");
+    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== error ==\n");
+    utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "    from: %s:%d %s()\n", file, line, func);
+    utils_colored_fprintf(stream, ANSI_COLOR_RED, "    err: %s\n    what: %s\n", processor_strerr(err), msg);
+
+    fprintf(stream, "\n");
+
+    BEGIN {
+        utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== regfile[%p] == \n", proc->regfile);
+
+        if(processor_is_err(err, PROCESSOR_ERR_REGFILE_NULL)) GOTO_END;
+
+        for(size_t regi = 0; regi < SIZEOF(proc_regs); ++regi) {
+            utils_colored_fprintf(stream, ANSI_COLOR_RED, "%s: ", proc_regs[regi].name);
+            utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "%08x\n", (unsigned) proc->regfile[regi]);
+        }
+
+        fprintf(stream, "\n");
+
+        utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== cmdbuf[%p] == \n", proc->cmdbuf);
+        
+        if(processor_is_err(err, PROCESSOR_ERR_CMDBUF_NULL)) GOTO_END;
+
+        for(unsigned int bufi = 0; bufi < proc->cmdbuf_size; ++bufi) {
+            if(bufi % PROCESSOR_DUMP_BYTES_PER_LINE == 0)
+                fprintf(stream, "[0x%08x] ", bufi);
+
+            if(bufi < METAINFO_LENGTH)
+                utils_colored_fprintf(stream, ANSI_COLOR_GREEN, "%08x ", (unsigned) proc->cmdbuf[bufi]);
+            else if(bufi == proc->pc)
+                utils_colored_fprintf(stream, ANSI_COLOR_RED, "%08x ", (unsigned) proc->cmdbuf[bufi]);
+            else 
+                utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "%08x ", (unsigned) proc->cmdbuf[bufi]);
+
+            if((bufi + 1) % PROCESSOR_DUMP_BYTES_PER_LINE == 0)
+                fprintf(stream, "\n");
+        }
+    } END;
+
+    fprintf(stream, "\n");
+
+    fprintf(stream, "\n");
+}
+
+#endif // _DEBUG
 
 cmd_callback_ret_t cmd_push(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
 {

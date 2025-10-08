@@ -3,9 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define BEGIN    do
-#define GOTO_END break
-#define END      while(0)
+#include "utils.h"
 
 #ifdef _DEBUG
 

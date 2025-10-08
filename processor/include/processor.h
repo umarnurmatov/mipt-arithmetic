@@ -4,6 +4,18 @@
 
 #include "commands.h"
 
+#ifdef _DEBUG
+
+#ifndef IF_DEBUG
+#define IF_DEBUG(statement) statement
+#endif // _IF_DEBUG
+
+#else
+
+#define IF_DEBUG(statement)
+
+#endif // _DEBUG
+
 const command_data_t BYTECODE_VERSION = 0x00000001;
 
 typedef enum processor_err_t
@@ -15,12 +27,10 @@ typedef enum processor_err_t
     PROCESSOR_ERR_ALLOC_FAIL    = 1 << 3,
     PROCESSOR_ERR_CMD_STACK_ERR = 1 << 4,
     PROCESSOR_ERR_CMD_UNKNOWN   = 1 << 5,
-    PROCESSOR_ERR_METADATA      = 1 << 6
+    PROCESSOR_ERR_METADATA      = 1 << 6,
+    PROCESSOR_ERR_CMDBUF_NULL   = 1 << 7,
+    PROCESSOR_ERR_REGFILE_NULL  = 1 << 8
 } processor_err_t;
-
-void processor_set_err(processor_err_t err, processor_err_t err_new);
-
-int processor_is_err(processor_err_t err, processor_err_t is_set);
 
 processor_err_t processor_ctor(processor_t* proc, FILE* file);
 
@@ -28,6 +38,16 @@ processor_err_t processor_run(processor_t* proc, const command_t* cmdarr, size_t
 
 void processor_dtor(processor_t* proc);
 
-void processor_dump(processor_t* proc, processor_err_t err);
+void processor_set_err(processor_err_t err, processor_err_t err_new);
+
+int processor_is_err(processor_err_t err, processor_err_t is_set);
 
 const char * processor_strerr(processor_err_t onehot);
+
+#ifdef _DEBUG
+
+processor_err_t processor_vldtr(processor_t* proc);
+
+void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const char* msg, const char* file, const char* func, int line);
+
+#endif // _DEBUG
