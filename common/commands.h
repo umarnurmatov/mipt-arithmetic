@@ -76,7 +76,7 @@ extern cmd_callback_ret_t cmd_je   (processor_t* proc,             command_data_
 extern cmd_callback_ret_t cmd_jne  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 
 // TODO make validator
-const command_t commands[] = 
+const command_t cmdarr[] = 
 {
     { "PUSH" , 0x00, 1, COMMAND_TYPE_STACK            , cmd_push  },
     { "PUSHR", 0x01, 1, COMMAND_TYPE_REGISTER         , cmd_pushr },
@@ -91,17 +91,18 @@ const command_t commands[] =
     { "OUT"  , 0x0A, 0, COMMAND_TYPE_CONTROL          , cmd_out   },
     { "JMP"  , 0x0B, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
     { "JB"   , 0x0C, 1, COMMAND_TYPE_JUMP             , cmd_jb    },
-    { "JBE"  , 0x0D, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
-    { "JA"   , 0x0E, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
-    { "JAE"  , 0x0F, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
-    { "JE"   , 0x10, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
-    { "JNE"  , 0x11, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
+    { "JBE"  , 0x0D, 1, COMMAND_TYPE_JUMP             , cmd_jbe   },
+    { "JA"   , 0x0E, 1, COMMAND_TYPE_JUMP             , cmd_ja    },
+    { "JAE"  , 0x0F, 1, COMMAND_TYPE_JUMP             , cmd_jae   },
+    { "JE"   , 0x10, 1, COMMAND_TYPE_JUMP             , cmd_je    },
+    { "JNE"  , 0x11, 1, COMMAND_TYPE_JUMP             , cmd_jne   },
 };
 
 const proc_reg_t proc_regs[] = 
 {
     { "RAX", 0x00 },
     { "RBX", 0x01 },
-    { "RCX", 0x02 }
+    { "RCX", 0x02 },
+    { "RDX", 0x03 }
 };
 

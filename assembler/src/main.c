@@ -38,31 +38,34 @@ int main(int argc, char* argv[])
     
     fileline_arr_read(&filearr, input_file);
     fclose(input_file);
+    
+    assembler_t asmblr {
+        .cmdbuf = NULL,
+        .cmdbuf_size = 0,
+        .cmdbuf_ptr = NULL
+    };
 
-    command_data_t* cmdbuf = NULL;
-    size_t cmdbuf_size = 0;
-
-    assembler_err_t asm_err = assembler_assemble_file(&filearr, commands, SIZEOF(commands), &cmdbuf, &cmdbuf_size);
+    assembler_err_t asm_err = assembler_assemble_file(&filearr, &asmblr);
     if(asm_err != ASSEMBLER_ERR_NONE) {
         utils_colored_fprintf(stderr, ANSI_COLOR_RED, "[ERROR] [ASM] %s\n", assembler_strerr(asm_err));
-        NFREE(cmdbuf);
+        NFREE(asmblr.cmdbuf);
         fileline_arr_free(&filearr);
         return EXIT_FAILURE;
     }
 
     fileline_arr_free(&filearr);
 
-    FILE* output_file = open_file(long_opts[1].arg, "w");
+    FILE* output_file = open_file(long_opts[1].arg, "wb");
     if(output_file == NULL) {
-        NFREE(cmdbuf);
+        NFREE(asmblr.cmdbuf);
         return EXIT_FAILURE;
     }
 
-    assembler_write_to_file(output_file, cmdbuf, cmdbuf_size);
+    assembler_write_to_file(output_file, &asmblr);
 
     fclose(output_file);
 
-    NFREE(cmdbuf);
+    NFREE(asmblr.cmdbuf);
 
     utils_end_log();
 

@@ -10,38 +10,39 @@
 static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 static const size_t METAINFO_LENGTH = 2;
 
-static assembler_err_t _assembler_write_metainfo(command_data_t** cmdbuf_ptr);
+static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr);
 
-static const command_t* _assembler_match_cmd(const char* name, const command_t* cmdarr, size_t cmdcnt);
+static const command_t*  _assembler_match_cmd(const char* name);
 static const proc_reg_t* _assembler_match_reg(char* regname);
 
-static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str);
+static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* asmblr, char** str);
+static assembler_err_t _assembler_parse_arg(const command_t* cmd, assembler_t* asmblr, char** str);
 
-static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t** cmdbuf_ptr, char** str);
 
-
-assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t* cmdarr, size_t cmdarr_size, command_data_t** cmdbuf, size_t* cmdbuf_size)
+assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, assembler_t* asmblr)
 {
     utils_assert(filearr);
-    utils_assert(cmdarr);
-    utils_assert(cmdbuf_size);
+    utils_assert(asmblr);
 
     fileline_t* line = NULL;
 
     size_t cmdbuf_tmp_size = filearr->lcnt * (MAX_CMD_ARG_CNT + 1) + METAINFO_LENGTH;
-    command_data_t* cmdbuf_tmp = (command_data_t*)calloc(cmdbuf_tmp_size, sizeof(cmdbuf[0]));
+    command_data_t* cmdbuf_tmp = (command_data_t*)calloc(cmdbuf_tmp_size, sizeof(asmblr->cmdbuf[0]));
     if(cmdbuf_tmp == NULL) {
         utils_log(LOG_LEVEL_ERR, "failed to allocate command buffer");
         return ASSEMBLER_ERR_ALLOC_FAIL;
     }
 
-    command_data_t* cmdbuf_tmp_ptr  = cmdbuf_tmp;
-    const command_t*  cmd           = NULL;
-    char*             str_ptr       = NULL;
+    asmblr->cmdbuf      = cmdbuf_tmp;
+    asmblr->cmdbuf_size = cmdbuf_tmp_size;
+    asmblr->cmdbuf_ptr  = cmdbuf_tmp;
+
+    const command_t* cmd     = NULL;
+    char*            str_ptr = NULL;
 
     assembler_err_t err = ASSEMBLER_ERR_NONE;
 
-    err = _assembler_write_metainfo(&cmdbuf_tmp_ptr);
+    err = _assembler_write_metainfo(asmblr);
     if(err != ASSEMBLER_ERR_NONE)
         return err;
 
@@ -52,27 +53,24 @@ assembler_err_t assembler_assemble_file(fileline_arr_t* filearr, const command_t
             return ASSEMBLER_ERR_PARSE_FAIL;
 
         str_ptr = line->str;
-        err = _assembler_parse_cmd(cmdarr, cmdarr_size, &cmd, &cmdbuf_tmp_ptr, &str_ptr);
+        err = _assembler_parse_cmd(&cmd, asmblr, &str_ptr);
         if(err != ASSEMBLER_ERR_NONE)
             return err;
 
-        err = _assembler_parse_arg(cmd, &cmdbuf_tmp_ptr, &str_ptr);
+        err = _assembler_parse_arg(cmd, asmblr, &str_ptr);
         if(err != ASSEMBLER_ERR_NONE)
             return err;
     }
     
-    *cmdbuf_size = (size_t)(cmdbuf_tmp_ptr - cmdbuf_tmp);
-    *cmdbuf      = cmdbuf_tmp;
-
     return ASSEMBLER_ERR_NONE;
 }
-assembler_err_t assembler_write_to_file(FILE* file, command_data_t* cmdbuf, size_t cmdbuf_size)
+assembler_err_t assembler_write_to_file(FILE* file, assembler_t* asmblr)
 {
     utils_assert(file);
-    utils_assert(cmdbuf);
+    utils_assert(asmblr);
     
-    size_t bytes_wr = fwrite(cmdbuf, sizeof(cmdbuf[0]), cmdbuf_size, file);
-    if(bytes_wr < cmdbuf_size)
+    size_t bytes_wr = fwrite(asmblr->cmdbuf, sizeof(asmblr->cmdbuf[0]), asmblr->cmdbuf_size, file);
+    if(bytes_wr < asmblr->cmdbuf_size)
         return ASSEMBLER_ERR_WRITE;
 
     return ASSEMBLER_ERR_NONE;
@@ -96,12 +94,12 @@ const char* assembler_strerr(assembler_err_t err)
     }
 }
 
-static const command_t* _assembler_match_cmd(const char* name, const command_t* cmdarr, size_t cmdcnt)
+static const command_t* _assembler_match_cmd(const char* name)
 {
     utils_assert(name);
     utils_assert(cmdarr);
 
-    for(size_t cmdi = 0; cmdi < cmdcnt; ++cmdi)
+    for(size_t cmdi = 0; cmdi < SIZEOF(cmdarr); ++cmdi)
         if(!strncmp(cmdarr[cmdi].name, name, MAX_CMD_LENGTH))
             return &cmdarr[cmdi];
     return NULL;
@@ -118,19 +116,17 @@ static const proc_reg_t* _assembler_match_reg(char* regname)
     return NULL;
 }
 
-static assembler_err_t _assembler_write_metainfo(command_data_t** cmdbuf_ptr)
+static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr)
 {
-    *((*cmdbuf_ptr)++) = SIGNATURE;
-    *((*cmdbuf_ptr)++) = BYTECODE_VERSION;
+    *(asmblr->cmdbuf_ptr++) = SIGNATURE;
+    *(asmblr->cmdbuf_ptr++) = BYTECODE_VERSION;
 
     return ASSEMBLER_ERR_NONE;
 }
 
-static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmdarr_size, const command_t** cmd, command_data_t** cmdbuf_ptr, char** str)
+static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* asmblr, char** str)
 {
-    utils_assert(cmdarr);
-    utils_assert(cmd);
-    utils_assert(cmdbuf_ptr);
+    utils_assert(asmblr);
     utils_assert(str);
 
     static char cmdstr[MAX_CMD_LENGTH] = "";
@@ -141,15 +137,14 @@ static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmda
         return ASSEMBLER_ERR_PARSE_FAIL;
     }
 
-    const command_t* cmd_tmp = 
-        _assembler_match_cmd(cmdstr, cmdarr, cmdarr_size);
+    const command_t* cmd_tmp = _assembler_match_cmd(cmdstr);
     
     if(cmd == NULL) {
         utils_log(LOG_LEVEL_ERR, "unknown command %s", cmdstr);
         return ASSEMBLER_ERR_CMD_UNKNOWN;
     }
 
-    *((*cmdbuf_ptr)++) = cmd_tmp->code;
+    *(asmblr->cmdbuf_ptr++) = cmd_tmp->code;
 
     *cmd =  cmd_tmp;
     *str += bytes_rd;
@@ -157,11 +152,11 @@ static assembler_err_t _assembler_parse_cmd(const command_t* cmdarr, size_t cmda
     return ASSEMBLER_ERR_NONE;
 }
 
-static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t** cmdbuf_ptr, char** str)
+static assembler_err_t _assembler_parse_arg(const command_t* cmd, assembler_t* asmblr, char** str)
 {
     utils_assert(cmd);
-    utils_assert(cmdbuf_ptr);
     utils_assert(str);
+    utils_assert(asmblr);
 
     command_data_t cmdarg = 0;
 
@@ -184,8 +179,9 @@ static assembler_err_t _assembler_parse_arg(const command_t* cmd, command_data_t
             }
         }
 
-        *((*cmdbuf_ptr)++) =  cmdarg;
-        *str               += bytes_rd;
+        *(asmblr->cmdbuf_ptr) =  cmdarg;
+
+        *str += bytes_rd;
     } 
 
     return ASSEMBLER_ERR_NONE;
