@@ -10,6 +10,14 @@
         .buffer_size = 0           \
     }                              \
 
+#define FILELINE_ARR_INITLIST(varname) \
+    varname =    {                     \
+        .lcnt        = 0,              \
+        .arr         = NULL,           \
+        .buffer      = NULL,           \
+        .buffer_size = 0               \
+    }                              
+
 typedef struct fileline_t
 {
     size_t len;
