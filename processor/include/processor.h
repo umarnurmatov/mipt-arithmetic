@@ -34,7 +34,7 @@ typedef enum processor_err_t
 
 processor_err_t processor_ctor(processor_t* proc, FILE* file);
 
-processor_err_t processor_run(processor_t* proc, const command_t* cmdarr, size_t cmdarr_size);
+processor_err_t processor_run(processor_t* proc);
 
 void processor_dtor(processor_t* proc);
 

@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cstring>
 #include <stdlib.h>
 
 #include "fileline_arr.h"
@@ -8,6 +9,9 @@
 #include "logutils.h"
 #include "utils.h"
 
+#define LOG_CATEGORY_OPT    "CLI OPTIONS"
+#define LOG_CATEGORY_FILEOP "FILE OPERATIONS"
+
 static utils_long_opt_t long_opts[] = 
 {
     { OPT_ARG_REQUIRED, "in", NULL, 0, 0 },
@@ -16,48 +20,48 @@ static utils_long_opt_t long_opts[] =
 
 int main(int argc, char* argv[])
 {
-    utils_init_log("log.txt", "log");
+    utils_init_log_stream(stderr);
 
     utils_long_opt_get(argc, argv, long_opts, SIZEOF(long_opts));
 
     if(!long_opts[0].is_set) {
-        utils_colored_fprintf(stderr, ANSI_COLOR_RED, "[ERROR] [OPT] Specify input file\b");
+        UTILS_LOGE(LOG_CATEGORY_OPT, "specify input file", "");
         return EXIT_FAILURE;
     }
 
     if(!long_opts[1].is_set) {
-        utils_colored_fprintf(stderr, ANSI_COLOR_RED, "[ERROR] [OPT] Specify output file\n");
+        UTILS_LOGE(LOG_CATEGORY_OPT, "specify output file", "");
         return EXIT_FAILURE;
     }
 
-    FILE* input_file = open_file(long_opts[0].arg, "r");
-    if(input_file == NULL)
-        return EXIT_FAILURE;
-
-    FILELINE_ARR_MAKE(filearr);
-    
-    fileline_arr_read(&filearr, input_file);
-    fclose(input_file);
-    
     assembler_t asmblr {
         .cmdbuf = NULL,
         .cmdbuf_size = 0,
-        .cmdbuf_ptr = NULL
+        .cmdbuf_ptr = NULL,
+        .lblbuf = NULL,
+        .lblbuf_size = 0,
+        .FILELINE_ARR_INITLIST(filearr)
     };
 
-    assembler_err_t asm_err = assembler_assemble_file(&filearr, &asmblr);
-    if(asm_err != ASSEMBLER_ERR_NONE) {
-        utils_colored_fprintf(stderr, ANSI_COLOR_RED, "[ERROR] [ASM] %s\n", assembler_strerr(asm_err));
-        NFREE(asmblr.cmdbuf);
-        fileline_arr_free(&filearr);
+    FILE* input_file = open_file(long_opts[0].arg, "r");
+    if(input_file == NULL) {
+        UTILS_LOGE(LOG_CATEGORY_FILEOP, "could not open input file", "");
         return EXIT_FAILURE;
     }
 
-    fileline_arr_free(&filearr);
+    assembler_ctor(input_file, &asmblr);
 
-    FILE* output_file = open_file(long_opts[1].arg, "wb");
+    fclose(input_file);
+    
+    assembler_err_t asm_err = assembler_assemble(&asmblr);
+    if(asm_err != ASSEMBLER_ERR_NONE) {
+        assembler_dtor(&asmblr);
+        return EXIT_FAILURE;
+    }
+
+    FILE* output_file = open_file(long_opts[1].arg, "w");
     if(output_file == NULL) {
-        NFREE(asmblr.cmdbuf);
+        assembler_dtor(&asmblr);
         return EXIT_FAILURE;
     }
 
@@ -65,7 +69,7 @@ int main(int argc, char* argv[])
 
     fclose(output_file);
 
-    NFREE(asmblr.cmdbuf);
+    assembler_dtor(&asmblr);
 
     utils_end_log();
 

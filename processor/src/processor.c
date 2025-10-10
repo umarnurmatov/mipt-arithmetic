@@ -21,9 +21,6 @@
         return err;                                                            \
     }
 
-#define PROCESSOR_DUMP(proc, err, msg)                                         \
-        processor_dump(stderr, proc, err, msg, __FILE__, __func__, __LINE__);  \
-
 #define PROCESSOR_VERIFY_OK_OR_RETURN_ERR(expr, proc, err, msg)                \
     if(!(expr)) {                                                              \
         processor_dump(stderr, proc, err, msg, __FILE__, __func__, __LINE__);  \
@@ -49,8 +46,6 @@ processor_err_t processor_ctor(processor_t* proc, FILE* file)
 {
     utils_assert(file);
     utils_assert(proc);
-
-    processor_err_t err = PROCESSOR_ERR_NONE;
 
     PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
         stack_ctor(&proc->stack, 1) == STACK_ERR_NONE,
@@ -118,7 +113,7 @@ processor_err_t processor_ctor(processor_t* proc, FILE* file)
     return PROCESSOR_ERR_NONE;
 }
 
-processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t cmdarr_size)
+processor_err_t processor_run(processor_t *proc)
 {
     utils_assert(proc);
     utils_assert(cmdarr);
@@ -132,14 +127,22 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
     command_data_t cmdarg_b = 0;
 
     for( ;; ) {
-        cmdcode = proc->cmdbuf[proc->pc++];
-
         PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
-            cmdcode < (signed) cmdarr_size,
+            proc->pc < proc->cmdbuf_size,
+            proc,
+            PROCESSOR_ERR_END_OF_BUFFER,
+            ""
+        );
+
+        cmdcode = proc->cmdbuf[proc->pc++];
+    
+        PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+            cmdcode < (signed) SIZEOF(cmdarr),
             proc,
             PROCESSOR_ERR_CMD_UNKNOWN,
             ""
         );
+
         
         if     (cmdarr[cmdcode].arg_cnt == 2) {
             cmdarg_a = proc->cmdbuf[proc->pc++];
@@ -153,13 +156,6 @@ processor_err_t processor_run(processor_t *proc, const command_t* cmdarr, size_t
 
         if(ret == CMD_CALLBACK_HALT)
             break;
-
-        PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
-            proc->pc < proc->cmdbuf_size,
-            proc,
-            PROCESSOR_ERR_END_OF_BUFFER,
-            ""
-        );
 
     }
 
@@ -318,8 +314,8 @@ cmd_callback_ret_t cmd_popr (processor_t* proc,             command_data_t a, AT
 cmd_callback_ret_t cmd_add (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t lhs = 0, rhs = 0;
-    stack_pop (&proc->stack, &lhs);
     stack_pop (&proc->stack, &rhs);
+    stack_pop (&proc->stack, &lhs);
     stack_push(&proc->stack, lhs + rhs);
 
     return CMD_CALLBACK_CONTINUE;
@@ -338,8 +334,8 @@ cmd_callback_ret_t cmd_sub (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
 cmd_callback_ret_t cmd_mul (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t lhs = 0, rhs = 0;
-    stack_pop (&proc->stack, &lhs);
     stack_pop (&proc->stack, &rhs);
+    stack_pop (&proc->stack, &lhs);
     stack_push(&proc->stack, lhs * rhs);
 
     return CMD_CALLBACK_CONTINUE;
@@ -348,8 +344,8 @@ cmd_callback_ret_t cmd_mul (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
 cmd_callback_ret_t cmd_div (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t lhs = 0, rhs = 0;
-    stack_pop (&proc->stack, &lhs);
     stack_pop (&proc->stack, &rhs);
+    stack_pop (&proc->stack, &lhs);
     stack_push(&proc->stack, lhs / rhs);
 
     return CMD_CALLBACK_CONTINUE;

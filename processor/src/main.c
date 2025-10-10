@@ -8,6 +8,9 @@
 #include "ioutils.h"
 #include "memutils.h"
 
+#define LOG_CATEGORY_OPT "CLI OPTIONS"
+#define LOG_CATEGORY_FILEOP "FILE OPERATIONS"
+
 static utils_long_opt_t long_opts[] = 
 {
     { OPT_ARG_REQUIRED, "in", NULL, 0, 0 },
@@ -15,18 +18,20 @@ static utils_long_opt_t long_opts[] =
 
 int main(int argc, char* argv[])
 {
-    utils_init_log("log.txt", "log");
+    utils_init_log_stream(stderr);
 
     utils_long_opt_get(argc, argv, long_opts, SIZEOF(long_opts));
 
     if(!long_opts[0].is_set) {
-        utils_colored_fprintf(stderr, ANSI_COLOR_RED, "[ERROR] [OPT] Specify input file\b");
+        UTILS_LOGE(LOG_CATEGORY_OPT, "specify input file", "");
         return EXIT_FAILURE;
     }
 
     FILE* input_file = open_file(long_opts[0].arg, "r");
-    if(input_file == NULL)
+    if(input_file == NULL) {
+        UTILS_LOGE(LOG_CATEGORY_FILEOP, "could not open input file", "");
         return EXIT_FAILURE;
+    }
 
     processor_t processor = {
         .STACK_INITLIST(stack),
@@ -39,7 +44,7 @@ int main(int argc, char* argv[])
 
     fclose(input_file);
 
-    processor_run(&processor, commands, SIZEOF(commands));
+    processor_run(&processor);
 
     processor_dtor(&processor);
 
