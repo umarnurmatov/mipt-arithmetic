@@ -341,7 +341,29 @@ cmd_callback_ret_t cmd_mul(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_div(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+#define PROCESSOR_GENERATE_CALLBACK_ARITHM_BINARY_(name, op)                                                     \
+    cmd_callback_err_t cmd_##name(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b) \
+    {                                                                                                            \
+        processor_err_t err = PROCESSOR_ERR_NONE;                                                                \
+        stack_err_t stk_err = STACK_ERR_NONE;                                                                    \
+                                                                                                                 \
+        stack_data_t lhs = 0, rhs = 0;                                                                           \
+                                                                                                                 \
+        stk_err = stack_pop (&proc->stack, &rhs);                                                                \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(stk_err, err);                                                       \
+                                                                                                                 \
+        stk_err = stack_pop (&proc->stack, &lhs);                                                                \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(stk_err, err);                                                       \
+                                                                                                                 \
+        stk_err = stack_push(&proc->stack, lhs op rhs);                                                          \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(stk_err, err);                                                       \
+                                                                                                                 \
+        return { CMD_CALLBACK_CONTINUE, err };                                                                   \
+    }                                                                                                            \
+
+PROCESSOR_GENERATE_CALLBACK_ARITHM_BINARY_(add, +);
+PROCESSOR_GENERATE_CALLBACK_ARITHM_BINARY_(sub, -);
+PROCESSOR_GENERATE_CALLBACK_ARITHM_BINARY_(mul, *);
 {
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&proc->stack, &rhs);
