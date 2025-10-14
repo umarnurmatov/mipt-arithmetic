@@ -144,7 +144,7 @@ processor_err_t processor_run(processor_t *proc)
         );
 
         
-        if     (cmdarr[cmdcode].arg_cnt == 2) {
+        if(cmdarr[cmdcode].arg_cnt == 2) {
             cmdarg_a = proc->cmdbuf[proc->pc++];
             cmdarg_b = proc->cmdbuf[proc->pc++];
         }
@@ -283,14 +283,14 @@ void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const 
 
 #endif // _DEBUG
 
-cmd_callback_ret_t cmd_push(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_push(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_push(&proc->stack, a);
 
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_pushr(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_pushr(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
     utils_assert((unsigned) a < SIZEOF(proc_regs));
 
@@ -300,7 +300,7 @@ cmd_callback_ret_t cmd_pushr(processor_t* proc,             command_data_t a, AT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_popr (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_popr(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
     utils_assert((unsigned) a < SIZEOF(proc_regs));
     
@@ -311,7 +311,7 @@ cmd_callback_ret_t cmd_popr (processor_t* proc,             command_data_t a, AT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_add (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_add(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&proc->stack, &rhs);
@@ -321,7 +321,7 @@ cmd_callback_ret_t cmd_add (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_sub (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_sub(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&proc->stack, &rhs);
@@ -331,7 +331,7 @@ cmd_callback_ret_t cmd_sub (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_mul (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_mul(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&proc->stack, &rhs);
@@ -341,7 +341,7 @@ cmd_callback_ret_t cmd_mul (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_div (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_div(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t lhs = 0, rhs = 0;
     stack_pop (&proc->stack, &rhs);
@@ -351,7 +351,7 @@ cmd_callback_ret_t cmd_div (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_sqr (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_sqr(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t val = 0;
     stack_pop (&proc->stack, &val);
@@ -365,7 +365,7 @@ cmd_callback_ret_t cmd_hlt (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
     return CMD_CALLBACK_HALT;
 }
 
-cmd_callback_ret_t cmd_out (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_out(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     stack_data_t val = 0;
     stack_pop (&proc->stack, &val);
@@ -375,7 +375,7 @@ cmd_callback_ret_t cmd_out (processor_t* proc, ATTR_UNUSED command_data_t a, ATT
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_jmp  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_jmp(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     utils_assert(a > 0);
     utils_assert((size_t) a < proc->cmdbuf_size);
