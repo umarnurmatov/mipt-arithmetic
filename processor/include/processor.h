@@ -38,7 +38,7 @@ processor_err_t processor_run(processor_t* proc);
 
 void processor_dtor(processor_t* proc);
 
-void processor_set_err(processor_err_t err, processor_err_t err_new);
+void processor_set_err(processor_err_t* err, processor_err_t err_new);
 
 int processor_is_err(processor_err_t err, processor_err_t is_set);
 

@@ -169,9 +169,9 @@ void processor_dtor(processor_t* proc)
     NFREE(proc->regfile);
 }
 
-void processor_set_err(processor_err_t err, processor_err_t err_new)
+void processor_set_err(processor_err_t* err, processor_err_t err_new)
 {
-    err = (processor_err_t)(err | err_new);
+    *err = (processor_err_t)(*err | err_new);
 } 
 
 int processor_is_err(processor_err_t err, processor_err_t is_set)
@@ -223,10 +223,10 @@ processor_err_t processor_vldtr(processor_t* proc)
 {
     processor_err_t err = PROCESSOR_ERR_NONE;
     if(proc->cmdbuf == NULL)
-        processor_set_err(err, PROCESSOR_ERR_CMDBUF_NULL);
+        processor_set_err(&err, PROCESSOR_ERR_CMDBUF_NULL);
 
     if(proc->regfile == NULL)
-        processor_set_err(err, PROCESSOR_ERR_REGFILE_NULL);
+        processor_set_err(&err, PROCESSOR_ERR_REGFILE_NULL);
 
     return err;
 }
