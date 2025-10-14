@@ -225,19 +225,32 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
         }
 
         else if(cmd->cmd_type == COMMAND_TYPE_JUMP && arg_i == 0) {
-            command_data_t lblcode = 0;
-            if(sscanf(str_ptr, "%d%n", &lblcode, &bytes_rd) != 1) {
-                assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-            if((unsigned) lblcode >= LBLBUF_MAX_SIZE) {
-                assembler_dump_syntax_err(asmblr, "label out of bound");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
 
-            if((unsigned) lblcode < asmblr->lblbuf_size 
-                    && asmblr->lblbuf[lblcode] != LBLBUF_PLACEHOLDER)
-                cmdarg = asmblr->lblbuf[lblcode];
+            char* lbl_start_ch = strchr(str_ptr, ':');
+
+            if(lbl_start_ch) { 
+
+                command_data_t lblcode = 0;
+
+                if(sscanf(++lbl_start_ch, "%d%n", &lblcode, &bytes_rd) != 1) {
+                    assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
+                    return ASSEMBLER_ERR_SYNTAX;
+                }
+                if((unsigned) lblcode >= LBLBUF_MAX_SIZE) {
+                    assembler_dump_syntax_err(asmblr, "label out of bound");
+                    return ASSEMBLER_ERR_SYNTAX;
+                }
+
+                if((unsigned) lblcode < asmblr->lblbuf_size 
+                        && asmblr->lblbuf[lblcode] != LBLBUF_PLACEHOLDER)
+                    cmdarg = asmblr->lblbuf[lblcode];
+            }
+            else {
+                if(sscanf(str_ptr, "%d%n", &cmdarg, &bytes_rd) != 1) {
+                    assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
+                    return ASSEMBLER_ERR_SYNTAX;
+                }
+            }
         }
 
         else {
