@@ -23,7 +23,9 @@ if(!(expr)) {                                                   \
 
 static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 static const size_t METAINFO_LENGTH = 2;
-static const size_t MAX_LBL_CODE    = 10;
+static const size_t LBLBUF_INIT_SIZE = 10;
+static const size_t LBLBUF_MAX_SIZE  = 100;
+static const command_data_t LBLBUF_PLACEHOLDER = -1;
 
 static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr);
 
@@ -55,16 +57,11 @@ assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
     asmblr->cmdbuf      = cmdbuf_tmp;
     asmblr->cmdbuf_size = cmdbuf_tmp_size;
     asmblr->cmdbuf_ind  = 0;
-
-    size_t lblbuf_tmp_size = MAX_LBL_CODE + 1;
-    command_data_t* lblbuf_tmp = (command_data_t*)calloc(lblbuf_tmp_size, sizeof(asmblr->lblbuf[0]));
-
-    ASSEMBLER_VERIFY_OR_RETURN(cmdbuf_tmp, ASSEMBLER_ERR_ALLOC_FAIL);
-
-    memset(lblbuf_tmp, -1, lblbuf_tmp_size * sizeof(lblbuf_tmp[0]));
-
-    asmblr->lblbuf      = lblbuf_tmp;
-    asmblr->lblbuf_size = lblbuf_tmp_size;
+    
+    ASSEMBLER_VERIFY_OR_RETURN(
+        _assembler_realloc_lblbuf(asmblr, LBLBUF_INIT_SIZE) == ASSEMBLER_ERR_NONE, 
+        ASSEMBLER_ERR_ALLOC_FAIL
+    );
 
     asmblr->line_ptr = NULL;
     asmblr->str_ind  = 0;
@@ -233,11 +230,13 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
                 assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
                 return ASSEMBLER_ERR_SYNTAX;
             }
-            if((unsigned) lblcode >= MAX_LBL_CODE) {
+            if((unsigned) lblcode >= LBLBUF_MAX_SIZE) {
                 assembler_dump_syntax_err(asmblr, "label out of bound");
                 return ASSEMBLER_ERR_SYNTAX;
             }
-            if(asmblr->lblbuf[lblcode] != -1)
+
+            if((unsigned) lblcode < asmblr->lblbuf_size 
+                    && asmblr->lblbuf[lblcode] != LBLBUF_PLACEHOLDER)
                 cmdarg = asmblr->lblbuf[lblcode];
         }
 
@@ -272,15 +271,27 @@ static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
     utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
     int lblcode = 0;
-    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind + 1]; 
 
-    if(sscanf(str_ptr, "%*c%d", &lblcode) != 1) {
+    if(sscanf(str_ptr, "%d", &lblcode) != 1) {
         assembler_dump_syntax_err(asmblr, "expected label");
         return ASSEMBLER_ERR_SYNTAX;
     }
+    
+    if((unsigned) lblcode >= LBLBUF_MAX_SIZE) {
+        assembler_dump_syntax_err(asmblr, "label out of bound");
+        return ASSEMBLER_ERR_SYNTAX;
+    }
+    
+    if((unsigned) lblcode > asmblr->lblbuf_size) {
+        while(asmblr->lblbuf_size < (unsigned) lblcode) 
+            ASSEMBLER_VERIFY_OR_RETURN(
+                _assembler_realloc_lblbuf(asmblr, asmblr->lblbuf_size * 2) == ASSEMBLER_ERR_NONE,
+                ASSEMBLER_ERR_ALLOC_FAIL
+            ); 
+    }
 
-    asmblr->lblbuf[lblcode] = (command_data_t) (asmblr->cmdbuf_ptr - asmblr->cmdbuf);
-
+    asmblr->lblbuf[lblcode] = (command_data_t) (asmblr->cmdbuf_ind);
     return ASSEMBLER_ERR_NONE;
 
 }
@@ -338,6 +349,8 @@ static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
 
                 err = _assembler_parse_cmd(&cmd, asmblr);
                 ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                
+                if(cmd->arg_cnt == 0) continue;
 
                 err = _assembler_parse_cmd_arg(cmd, asmblr);
                 ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
