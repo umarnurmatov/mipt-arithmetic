@@ -360,7 +360,7 @@ cmd_callback_ret_t cmd_sqr(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_hlt (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_ret_t cmd_hlt(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     return CMD_CALLBACK_HALT;
 }
@@ -385,91 +385,26 @@ cmd_callback_ret_t cmd_jmp(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
     return CMD_CALLBACK_CONTINUE;
 }
 
-cmd_callback_ret_t cmd_jb   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
-{
-    utils_assert(a > 0);
-    utils_assert((size_t) a < proc->cmdbuf_size);
+#define PROCESSOR_GENERATE_CALLBACK_J_(name, sign)                                                    \
+    cmd_callback_ret_t cmd_j##name(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b) \
+    {                                                                                                 \
+        utils_assert(a > 0);                                                                          \
+        utils_assert((size_t) a < proc->cmdbuf_size);                                                 \
+                                                                                                      \
+        stack_data_t lhs = 0, rhs = 0;                                                                \
+        stack_pop(&proc->stack, &rhs);                                                                \
+        stack_pop(&proc->stack, &lhs);                                                                \
+                                                                                                      \
+        if(lhs sign rhs)                                                                              \
+            proc->pc = (size_t) a;                                                                    \
+                                                                                                      \
+        return CMD_CALLBACK_CONTINUE;                                                                 \
+    }                                                 
 
-    stack_data_t lhs = 0, rhs = 0;
-    stack_pop(&proc->stack, &rhs);
-    stack_pop(&proc->stack, &lhs);
+PROCESSOR_GENERATE_CALLBACK_J_(b , < );
+PROCESSOR_GENERATE_CALLBACK_J_(be, <=);
+PROCESSOR_GENERATE_CALLBACK_J_(a , > );
+PROCESSOR_GENERATE_CALLBACK_J_(ae, >=);
+PROCESSOR_GENERATE_CALLBACK_J_(e , ==);
+PROCESSOR_GENERATE_CALLBACK_J_(ne, !=);
 
-    if(lhs < rhs)
-        proc->pc = (size_t) a;
-
-    return CMD_CALLBACK_CONTINUE;
-}
-cmd_callback_ret_t cmd_jbe  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
-{
-    utils_assert(a > 0);
-    utils_assert((size_t) a < proc->cmdbuf_size);
-
-    stack_data_t lhs = 0, rhs = 0;
-    stack_pop(&proc->stack, &rhs);
-    stack_pop(&proc->stack, &lhs);
-
-    if(lhs <= rhs)
-        proc->pc = (size_t) a;
-
-    return CMD_CALLBACK_CONTINUE;
-}
-
-cmd_callback_ret_t cmd_ja   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
-{
-    utils_assert(a > 0);
-    utils_assert((size_t) a < proc->cmdbuf_size);
-
-    stack_data_t lhs = 0, rhs = 0;
-    stack_pop(&proc->stack, &rhs);
-    stack_pop(&proc->stack, &lhs);
-
-    if(lhs > rhs)
-        proc->pc = (size_t) a;
-
-    return CMD_CALLBACK_CONTINUE;
-}
-
-cmd_callback_ret_t cmd_jae  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
-{
-    utils_assert(a > 0);
-    utils_assert((size_t) a < proc->cmdbuf_size);
-
-    stack_data_t lhs = 0, rhs = 0;
-    stack_pop(&proc->stack, &rhs);
-    stack_pop(&proc->stack, &lhs);
-
-    if(lhs >= rhs)
-        proc->pc = (size_t) a;
-
-    return CMD_CALLBACK_CONTINUE;
-}
-
-cmd_callback_ret_t cmd_je   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
-{
-    utils_assert(a > 0);
-    utils_assert((size_t) a < proc->cmdbuf_size);
-
-    stack_data_t lhs = 0, rhs = 0;
-    stack_pop(&proc->stack, &rhs);
-    stack_pop(&proc->stack, &lhs);
-
-    if(lhs == rhs)
-        proc->pc = (size_t) a;
-
-    return CMD_CALLBACK_CONTINUE;
-}
-
-cmd_callback_ret_t cmd_jne  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b)
-{
-    utils_assert(a > 0);
-    utils_assert((size_t) a < proc->cmdbuf_size);
-
-    stack_data_t lhs = 0, rhs = 0;
-    stack_pop(&proc->stack, &rhs);
-    stack_pop(&proc->stack, &lhs);
-
-    if(lhs != rhs)
-        proc->pc = (size_t) a;
-
-    return CMD_CALLBACK_CONTINUE;
-}
