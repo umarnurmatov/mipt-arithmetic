@@ -33,7 +33,7 @@ typedef struct assembler_t
 
     fileline_arr_t  filearr;
     fileline_t*     line_ptr;
-    char*           str_ptr;
+    size_t          str_ind;
 } assembler_t;
 
 assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr);

@@ -65,7 +65,7 @@ assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
     asmblr->lblbuf_size = lblbuf_tmp_size;
 
     asmblr->line_ptr = NULL;
-    asmblr->str_ptr  = NULL;
+    asmblr->str_ind  = 0;
 
     return ASSEMBLER_ERR_NONE;
 }
@@ -169,12 +169,13 @@ static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr)
 static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
     static char cmdstr[MAX_CMD_LENGTH] = "";
 
     int bytes_rd = 0;
-    if(sscanf(asmblr->str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+    if(sscanf(str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
         assembler_dump_syntax_err(asmblr, "expected command");
         return ASSEMBLER_ERR_SYNTAX;
     }
@@ -190,7 +191,7 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
 
     *cmd = cmd_tmp;
 
-    asmblr->str_ptr += bytes_rd;
+    asmblr->str_ind += (size_t) bytes_rd;
 
     return ASSEMBLER_ERR_NONE;
 }
@@ -198,7 +199,7 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
 static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
     command_data_t cmdarg = 0;
 
@@ -207,8 +208,10 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
     int bytes_rd = 0;
     for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
 
+        char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+
         if(cmd->cmd_type == COMMAND_TYPE_REGISTER && arg_i == 0) {
-            if(sscanf(asmblr->str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
+            if(sscanf(str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
                 assembler_dump_syntax_err(asmblr, "expected register name");
                 return ASSEMBLER_ERR_SYNTAX;
             }
@@ -224,7 +227,7 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
 
         else if(cmd->cmd_type == COMMAND_TYPE_JUMP && arg_i == 0) {
             command_data_t lblcode = 0;
-            if(sscanf(asmblr->str_ptr, "%d%n", &lblcode, &bytes_rd) != 1) {
+            if(sscanf(str_ptr, "%d%n", &lblcode, &bytes_rd) != 1) {
                 assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
                 return ASSEMBLER_ERR_SYNTAX;
             }
@@ -237,7 +240,7 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
         }
 
         else {
-            if(sscanf(asmblr->str_ptr, "%d%n", &cmdarg, &bytes_rd) != 1) {
+            if(sscanf(str_ptr, "%d%n", &cmdarg, &bytes_rd) != 1) {
                 assembler_dump_syntax_err(asmblr, "expected argument");
                 return ASSEMBLER_ERR_SYNTAX;
             }
@@ -245,7 +248,7 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
 
         asmblr->cmdbuf[asmblr->cmdbuf_ind++] = cmdarg;
 
-        asmblr->str_ptr += bytes_rd;
+        asmblr->str_ind += (size_t) bytes_rd;
     } 
 
     return ASSEMBLER_ERR_NONE;
@@ -254,9 +257,9 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
 static assembler_expr_t _assembler_get_expr_type(assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
-    return asmblr->str_ptr[0] == ':' 
+    return asmblr->line_ptr->str[0] == ':' 
             ? ASSEMBLER_EXPR_LBL
             : ASSEMBLER_EXPR_CMD;
 }
@@ -264,11 +267,12 @@ static assembler_expr_t _assembler_get_expr_type(assembler_t* asmblr)
 static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
     int lblcode = 0;
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
 
-    if(sscanf(asmblr->str_ptr, "%*c%d", &lblcode) != 1) {
+    if(sscanf(str_ptr, "%*c%d", &lblcode) != 1) {
         assembler_dump_syntax_err(asmblr, "expected label");
         return ASSEMBLER_ERR_SYNTAX;
     }
@@ -294,7 +298,7 @@ static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
 
         ASSEMBLER_VERIFY_OR_RETURN(asmblr->line_ptr, ASSEMBLER_ERR_PARSE_FAIL); 
 
-        asmblr->str_ptr = asmblr->line_ptr->str;
+        asmblr->str_ind = 0;
 
         assembler_expr_t expr_type = _assembler_get_expr_type(asmblr);
 
