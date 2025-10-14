@@ -36,6 +36,8 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
 static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_t* asmblr);
 static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr);
 
+static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t new_size);
+
 static assembler_err_t _assembler_assemble_once(assembler_t* asmblr);
 
 assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
@@ -281,6 +283,29 @@ static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
 
     return ASSEMBLER_ERR_NONE;
 
+}
+
+static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t new_size)
+{
+    utils_assert(asmblr); 
+
+    if(!asmblr->lblbuf)
+        asmblr->lblbuf_size = 0;
+
+    size_t lblbuf_tmp_size = new_size;
+    command_data_t* lblbuf_tmp = 
+        (command_data_t*)realloc(asmblr->lblbuf, lblbuf_tmp_size * sizeof(asmblr->lblbuf[0]));
+
+    if(lblbuf_tmp == NULL)
+        return ASSEMBLER_ERR_ALLOC_FAIL;
+
+    if(lblbuf_tmp_size > asmblr->lblbuf_size)
+        memset(asmblr->lblbuf_size + lblbuf_tmp, LBLBUF_PLACEHOLDER, (lblbuf_tmp_size - asmblr->lblbuf_size) * sizeof(lblbuf_tmp[0]));
+
+    asmblr->lblbuf      = lblbuf_tmp;
+    asmblr->lblbuf_size = lblbuf_tmp_size;
+
+    return ASSEMBLER_ERR_NONE;
 }
 
 static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)

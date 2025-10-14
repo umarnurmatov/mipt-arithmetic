@@ -49,11 +49,21 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    assembler_ctor(input_file, &asmblr);
+    assembler_err_t asm_err = ASSEMBLER_ERR_NONE;
+
+    if(asm_err != ASSEMBLER_ERR_NONE) {
+        assembler_dtor(&asmblr);
+        return EXIT_FAILURE;
+    }
+    asm_err = assembler_ctor(input_file, &asmblr);
+    if(asm_err != ASSEMBLER_ERR_NONE) {
+        assembler_dtor(&asmblr);
+        return EXIT_FAILURE;
+    }
 
     fclose(input_file);
     
-    assembler_err_t asm_err = assembler_assemble(&asmblr);
+    asm_err = assembler_assemble(&asmblr);
     if(asm_err != ASSEMBLER_ERR_NONE) {
         assembler_dtor(&asmblr);
         return EXIT_FAILURE;
