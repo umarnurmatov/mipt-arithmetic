@@ -38,7 +38,7 @@ typedef struct assembler_t
 
 assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr);
 
-assembler_err_t assembler_assemble(assembler_t* asmblr);
+assembler_err_t assembler_assemble(assembler_t* asmblr, int dump_listing);
 
 assembler_err_t assembler_write_to_file(FILE* file, assembler_t* asmblr);
 

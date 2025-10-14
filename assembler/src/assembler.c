@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "assertutils.h"
+#include "colorutils.h"
 #include "commands.h"
 #include "fileline_arr.h"
 #include "logutils.h"
@@ -40,7 +41,9 @@ static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr);
 
 static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t new_size);
 
-static assembler_err_t _assembler_assemble_once(assembler_t* asmblr);
+static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_listing);
+
+static void _assembler_dump_line(assembler_t* asmblr, size_t bytes_assembled);
 
 assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
 {
@@ -69,17 +72,17 @@ assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
     return ASSEMBLER_ERR_NONE;
 }
 
-assembler_err_t assembler_assemble(assembler_t* asmblr)
+assembler_err_t assembler_assemble(assembler_t* asmblr, int dump_listing)
 {
     assembler_err_t err = ASSEMBLER_ERR_NONE;
 
-    err = _assembler_assemble_once(asmblr);
+    err = _assembler_assemble_once(asmblr, 0);
     if(err != ASSEMBLER_ERR_NONE)
         return err;
 
     asmblr->cmdbuf_ind = 0;
 
-    err = _assembler_assemble_once(asmblr);
+    err = _assembler_assemble_once(asmblr, dump_listing);
     if(err != ASSEMBLER_ERR_NONE)
         return err;
 
@@ -332,7 +335,7 @@ static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t new
     return ASSEMBLER_ERR_NONE;
 }
 
-static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
+static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_listing)
 {
     ASSEMBLER_ASSERT_OK(asmblr)
 
@@ -351,11 +354,16 @@ static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
 
         assembler_expr_t expr_type = _assembler_get_expr_type(asmblr);
 
+        size_t cmdbuf_ind_prev = asmblr->cmdbuf_ind;
+
         switch(expr_type) {
             case ASSEMBLER_EXPR_LBL:
 
                 err = _assembler_parse_lbl_arg(asmblr);
                 ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+
+                if(dump_listing)
+                    _assembler_dump_line(asmblr, 0);
 
                 break;
             case ASSEMBLER_EXPR_CMD:
@@ -363,16 +371,46 @@ static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
                 err = _assembler_parse_cmd(&cmd, asmblr);
                 ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
                 
-                if(cmd->arg_cnt == 0) continue;
+                if(cmd->arg_cnt != 0) {
+                    err = _assembler_parse_cmd_arg(cmd, asmblr);
+                    ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                }
 
-                err = _assembler_parse_cmd_arg(cmd, asmblr);
-                ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                if(dump_listing)
+                    _assembler_dump_line(asmblr, asmblr->cmdbuf_ind - cmdbuf_ind_prev);
 
                 break;
             default:
                 break;
         }
+
     }
     
     return ASSEMBLER_ERR_NONE;
+}
+
+static void _assembler_dump_line(assembler_t* asmblr, size_t bytes_assembled)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+
+    static char hexbuf[(sizeof(command_data_t) * 8 + 1) * (MAX_CMD_ARG_CNT + 1)];
+    char* hexbuf_ptr = hexbuf;
+    
+    if(bytes_assembled > 0)
+        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "[%08zx] ", asmblr->cmdbuf_ind - bytes_assembled);
+    else
+        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "[xxxxxxxx] ");
+
+    if(bytes_assembled > 0) {
+        for(size_t bufi = asmblr->cmdbuf_ind - bytes_assembled; bufi < asmblr->cmdbuf_ind; ++bufi)
+            hexbuf_ptr += sprintf(hexbuf_ptr, "%08x ", (unsigned) asmblr->cmdbuf[bufi]);
+
+        utils_colored_fprintf(stdout, ANSI_COLOR_BLUE, "%20s", hexbuf);
+    }
+    else {
+        utils_colored_fprintf(stdout, ANSI_COLOR_BLUE, "  [label]           ");
+    }
+
+
+    utils_colored_fprintf(stdout, ANSI_COLOR_YELLOW, "%s\n", asmblr->line_ptr->str);
 }

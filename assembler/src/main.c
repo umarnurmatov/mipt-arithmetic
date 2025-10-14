@@ -14,8 +14,9 @@
 
 static utils_long_opt_t long_opts[] = 
 {
-    { OPT_ARG_REQUIRED, "in", NULL, 0, 0 },
-    { OPT_ARG_REQUIRED, "out" , NULL, 0, 0 },
+    { OPT_ARG_REQUIRED, "in"      , NULL, 0, 0 },
+    { OPT_ARG_REQUIRED, "out"     , NULL, 0, 0 },
+    { OPT_ARG_NONE    , "listing" , NULL, 0, 0 },
 };
 
 int main(int argc, char* argv[])
@@ -62,8 +63,8 @@ int main(int argc, char* argv[])
     }
 
     fclose(input_file);
-    
-    asm_err = assembler_assemble(&asmblr);
+
+    asm_err = assembler_assemble(&asmblr, long_opts[2].is_set);
     if(asm_err != ASSEMBLER_ERR_NONE) {
         assembler_dtor(&asmblr);
         return EXIT_FAILURE;
