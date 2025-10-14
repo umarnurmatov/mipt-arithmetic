@@ -256,13 +256,9 @@ static assembler_expr_t _assembler_get_expr_type(assembler_t* asmblr)
     ASSEMBLER_ASSERT_OK(asmblr);
     utils_assert(asmblr->str_ptr);
 
-    char lbl = 0;
-    if(sscanf(asmblr->str_ptr, "%c", &lbl) != 1) {}
-
-    if(lbl == ':') 
-        return ASSEMBLER_EXPR_LBL;
-    else
-        return ASSEMBLER_EXPR_CMD;
+    return asmblr->str_ptr[0] == ':' 
+            ? ASSEMBLER_EXPR_LBL
+            : ASSEMBLER_EXPR_CMD;
 }
 
 static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
