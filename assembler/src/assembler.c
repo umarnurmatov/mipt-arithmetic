@@ -9,11 +9,11 @@
 #include "logutils.h"
 #include "memutils.h"
 
-#define ASSEMBLER_ASSERT_OK(asmblr)   \
-    utils_assert(asmblr);             \
-    utils_assert(asmblr->cmdbuf);     \
-    utils_assert(asmblr->cmdbuf_ptr); \
-    utils_assert(asmblr->lblbuf);     \
+#define ASSEMBLER_ASSERT_OK(asmblr)                         \
+    utils_assert(asmblr);                                   \
+    utils_assert(asmblr->cmdbuf);                           \
+    utils_assert(asmblr->cmdbuf_ind < asmblr->cmdbuf_size); \
+    utils_assert(asmblr->lblbuf);                           \
 
 #define ASSEMBLER_VERIFY_OR_RETURN(expr, err)                   \
 if(!(expr)) {                                                   \
@@ -52,7 +52,7 @@ assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
 
     asmblr->cmdbuf      = cmdbuf_tmp;
     asmblr->cmdbuf_size = cmdbuf_tmp_size;
-    asmblr->cmdbuf_ptr  = cmdbuf_tmp;
+    asmblr->cmdbuf_ind  = 0;
 
     size_t lblbuf_tmp_size = MAX_LBL_CODE + 1;
     command_data_t* lblbuf_tmp = (command_data_t*)calloc(lblbuf_tmp_size, sizeof(asmblr->lblbuf[0]));
@@ -78,7 +78,7 @@ assembler_err_t assembler_assemble(assembler_t* asmblr)
     if(err != ASSEMBLER_ERR_NONE)
         return err;
 
-    asmblr->cmdbuf_ptr = asmblr->cmdbuf;
+    asmblr->cmdbuf_ind = 0;
 
     err = _assembler_assemble_once(asmblr);
     if(err != ASSEMBLER_ERR_NONE)
@@ -92,7 +92,7 @@ assembler_err_t assembler_write_to_file(FILE* file, assembler_t* asmblr)
     utils_assert(file);
     utils_assert(asmblr);
 
-    size_t bytecode_s = (size_t)(asmblr->cmdbuf_ptr - asmblr->cmdbuf);
+    size_t bytecode_s = asmblr->cmdbuf_ind + 1;
     size_t bytes_wr = fwrite(asmblr->cmdbuf, sizeof(asmblr->cmdbuf[0]), bytecode_s, file);
     if(bytes_wr < bytecode_s)
         return ASSEMBLER_ERR_WRITE;
@@ -160,8 +160,8 @@ static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
 
-    *(asmblr->cmdbuf_ptr++) = SIGNATURE;
-    *(asmblr->cmdbuf_ptr++) = BYTECODE_VERSION;
+    asmblr->cmdbuf[asmblr->cmdbuf_ind++] = SIGNATURE;
+    asmblr->cmdbuf[asmblr->cmdbuf_ind++] = BYTECODE_VERSION;
 
     return ASSEMBLER_ERR_NONE;
 }
@@ -186,7 +186,7 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
         return ASSEMBLER_ERR_SYNTAX;
     }
 
-    *(asmblr->cmdbuf_ptr++) = cmd_tmp->code;
+    asmblr->cmdbuf[asmblr->cmdbuf_ind++] = cmd_tmp->code;
 
     *cmd = cmd_tmp;
 
@@ -243,7 +243,7 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
             }
         }
 
-        *(asmblr->cmdbuf_ptr++) = cmdarg;
+        asmblr->cmdbuf[asmblr->cmdbuf_ind++] = cmdarg;
 
         asmblr->str_ptr += bytes_rd;
     } 

@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
     assembler_t asmblr {
         .cmdbuf = NULL,
         .cmdbuf_size = 0,
-        .cmdbuf_ptr = NULL,
+        .cmdbuf_ind = 0,
         .lblbuf = NULL,
         .lblbuf_size = 0,
         .FILELINE_ARR_INITLIST(filearr)

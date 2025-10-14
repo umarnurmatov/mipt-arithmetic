@@ -26,7 +26,7 @@ typedef struct assembler_t
 {
     command_data_t* cmdbuf;
     size_t          cmdbuf_size;
-    command_data_t* cmdbuf_ptr;
+    size_t          cmdbuf_ind;
 
     command_data_t* lblbuf;
     size_t          lblbuf_size;
