@@ -29,7 +29,11 @@ typedef enum processor_err_t
     PROCESSOR_ERR_CMD_UNKNOWN   = 1 << 5,
     PROCESSOR_ERR_METADATA      = 1 << 6,
     PROCESSOR_ERR_CMDBUF_NULL   = 1 << 7,
-    PROCESSOR_ERR_REGFILE_NULL  = 1 << 8
+    PROCESSOR_ERR_REGFILE_NULL  = 1 << 8,
+    PROCESSOR_ERR_REG_UNKNOWN   = 1 << 9,
+    PROCESSOR_ERR_ZERO_DIV      = 1 << 10,
+    PROCESSOR_ERR_DOMAIN_ERR    = 1 << 11,
+    PROCESSOR_ERR_INVALID_PC    = 1 << 12
 } processor_err_t;
 
 processor_err_t processor_ctor(processor_t* proc, FILE* file);

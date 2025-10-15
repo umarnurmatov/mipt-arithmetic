@@ -28,10 +28,17 @@ typedef enum command_type_t
 typedef enum cmd_callback_ret_t
 {
     CMD_CALLBACK_HALT,
-    CMD_CALLBACK_CONTINUE
+    CMD_CALLBACK_CONTINUE,
+    CMD_CALLBACK_ERR
 } cmd_callback_ret_t;
 
-typedef cmd_callback_ret_t (*cmd_callback)(processor_t* proc, command_data_t, command_data_t);
+typedef struct cmd_callback_err_t
+{
+    cmd_callback_ret_t ret;
+    int err;
+} cmd_callback_err_t;
+
+typedef cmd_callback_err_t (*cmd_callback)(processor_t* proc, command_data_t, command_data_t);
 
 typedef struct command_t
 {
@@ -57,23 +64,23 @@ typedef struct processor_t
     command_data_t* regfile;
 } processor_t;
 
-extern cmd_callback_ret_t cmd_push (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_pushr(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_popr (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_add  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_sub  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_mul  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_div  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_sqr  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_out  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_hlt  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_jmp  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_jb   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_jbe  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_ja   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_jae  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_je   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
-extern cmd_callback_ret_t cmd_jne  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_push (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_pushr(processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_popr (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_add  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_sub  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_mul  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_div  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_sqr  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_out  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_hlt  (processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_jmp  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_jb   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_jbe  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_ja   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_jae  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_je   (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_jne  (processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 
 // TODO make validator
 const command_t cmdarr[] = 

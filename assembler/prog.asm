@@ -19,7 +19,7 @@ SUB
 POPR  RDX
 PUSHR RDX
 PUSH  0
-JB    :2
+JB    -1 
 PUSHR RDX
 PUSH  0
 JE    :3
