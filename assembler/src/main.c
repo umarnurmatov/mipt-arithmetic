@@ -26,12 +26,12 @@ int main(int argc, char* argv[])
     utils_long_opt_get(argc, argv, long_opts, SIZEOF(long_opts));
 
     if(!long_opts[0].is_set) {
-        UTILS_LOGE(LOG_CATEGORY_OPT, "specify input file", "");
+        UTILS_LOGE(LOG_CATEGORY_OPT, "specify input file");
         return EXIT_FAILURE;
     }
 
     if(!long_opts[1].is_set) {
-        UTILS_LOGE(LOG_CATEGORY_OPT, "specify output file", "");
+        UTILS_LOGE(LOG_CATEGORY_OPT, "specify output file");
         return EXIT_FAILURE;
     }
 
@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 
     FILE* input_file = open_file(long_opts[0].arg, "r");
     if(input_file == NULL) {
-        UTILS_LOGE(LOG_CATEGORY_FILEOP, "could not open input file", "");
+        UTILS_LOGE(LOG_CATEGORY_FILEOP, "could not open input file");
         return EXIT_FAILURE;
     }
 
