@@ -233,10 +233,6 @@ processor_err_t processor_vldtr(processor_t* proc)
 
 void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const char* msg, const char* file, const char* func, int line)
 {
-    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "========== stacktrace ==========\n");
-    utils_print_stacktrace(); 
-    fprintf(stream, "\n");
-
     utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "========== processor dump ==========\n\n");
     utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== error ==\n");
     utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "    from: %s:%d %s()\n", file, line, func);
