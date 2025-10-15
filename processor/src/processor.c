@@ -415,9 +415,9 @@ cmd_callback_err_t cmd_sqr(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
     return { CMD_CALLBACK_CONTINUE, err };
 }
 
-cmd_callback_err_t cmd_hlt(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+cmd_callback_err_t cmd_hlt(ATTR_UNUSED processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
-    return { CMD_CALLBACK_CONTINUE, PROCESSOR_ERR_NONE };
+    return { CMD_CALLBACK_HALT, PROCESSOR_ERR_NONE };
 }
 
 cmd_callback_err_t cmd_out(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
