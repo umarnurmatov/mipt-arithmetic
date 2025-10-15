@@ -15,15 +15,18 @@
 
 #ifdef _DEBUG
 
+#define PROCESSOR_DUMP(proc, err, msg) \
+    processor_dump(stderr, proc, err, msg, __FILE__, __func__, __LINE__);
+
 #define PROCESSOR_ASSERT_OK_OR_RETURN_ERR(proc, err)                           \
     if((err = processor_vldtr(proc)) != PROCESSOR_ERR_NONE) {                  \
-        processor_dump(stderr, proc, err, "", __FILE__, __func__, __LINE__);   \
+        PROCESSOR_DUMP(proc, err, "");                                         \
         return err;                                                            \
     }
 
 #define PROCESSOR_VERIFY_OK_OR_RETURN_ERR(expr, proc, err, msg)                \
     if(!(expr)) {                                                              \
-        processor_dump(stderr, proc, err, msg, __FILE__, __func__, __LINE__);  \
+        PROCESSOR_DUMP(proc, err, msg);                                        \
         return err;                                                            \
     }
 
@@ -142,7 +145,6 @@ processor_err_t processor_run(processor_t *proc)
             PROCESSOR_ERR_CMD_UNKNOWN,
             ""
         );
-
         
         if(cmdarr[cmdcode].arg_cnt == 2) {
             cmdarg_a = proc->cmdbuf[proc->pc++];
