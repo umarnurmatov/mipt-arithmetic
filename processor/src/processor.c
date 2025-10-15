@@ -501,3 +501,35 @@ PROCESSOR_GENERATE_CALLBACK_J_(ae, >=);
 PROCESSOR_GENERATE_CALLBACK_J_(e , ==);
 PROCESSOR_GENERATE_CALLBACK_J_(ne, !=);
 
+extern cmd_callback_err_t cmd_call(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    processor_err_t err = PROCESSOR_ERR_NONE;
+
+    stack_err_t stk_err = stack_push(&proc->stack, (command_data_t) proc->pc);
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+
+    proc->pc = (size_t) a;
+
+    return { CMD_CALLBACK_CONTINUE, err };
+}
+
+extern cmd_callback_err_t cmd_ret(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    processor_err_t err = PROCESSOR_ERR_NONE;
+
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(
+        proc, 
+        (unsigned) a < SIZEOF(proc_regs), 
+        err, 
+        PROCESSOR_ERR_REG_UNKNOWN
+    );
+    
+    stack_data_t stkdata = 0;
+    stack_err_t stk_err = stack_pop(&proc->stack, &stkdata);
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+
+    proc->pc = (size_t) stkdata;
+
+    return { CMD_CALLBACK_CONTINUE, err };
+}
+

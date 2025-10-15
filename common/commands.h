@@ -22,7 +22,9 @@ typedef enum command_type_t
     COMMAND_TYPE_CONTROL,
     COMMAND_TYPE_STACK,
     COMMAND_TYPE_REGISTER,
-    COMMAND_TYPE_JUMP
+    COMMAND_TYPE_JUMP,
+    COMMAND_TYPE_CALL,
+    COMMAND_TYPE_RET
 } command_type_t;
 
 typedef enum cmd_callback_ret_t
@@ -81,6 +83,8 @@ extern cmd_callback_err_t cmd_ja   (            processor_t* proc,             c
 extern cmd_callback_err_t cmd_jae  (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 extern cmd_callback_err_t cmd_je   (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 extern cmd_callback_err_t cmd_jne  (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_call (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_ret  (            processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
 
 // TODO make validator
 const command_t cmdarr[] = 
@@ -103,6 +107,8 @@ const command_t cmdarr[] =
     { "JAE"  , 0x0F, 1, COMMAND_TYPE_JUMP             , cmd_jae   },
     { "JE"   , 0x10, 1, COMMAND_TYPE_JUMP             , cmd_je    },
     { "JNE"  , 0x11, 1, COMMAND_TYPE_JUMP             , cmd_jne   },
+    { "CALL" , 0x12, 1, COMMAND_TYPE_CALL             , cmd_call  },
+    { "RET"  , 0x13, 0, COMMAND_TYPE_RET              , cmd_ret   },
 };
 
 const proc_reg_t proc_regs[] = 

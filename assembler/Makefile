@@ -30,7 +30,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(CC) $(CPPFLAGS) -c $< -o $@
 
 .PHONY: run
-run: FLAGS = --in=prog.asm --out=prog.o --listing
+run: FLAGS = --in=prog-factorial.asm --out=prog.o --listing
 run: $(BUILD_DIR)/$(EXECUTABLE)
 	@./$(BUILD_DIR)/$(EXECUTABLE) $(FLAGS)
 

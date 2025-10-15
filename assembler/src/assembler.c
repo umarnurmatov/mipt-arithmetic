@@ -227,7 +227,7 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
             cmdarg = reg->num;
         }
 
-        else if(cmd->cmd_type == COMMAND_TYPE_JUMP && arg_i == 0) {
+        else if(cmd->cmd_type == COMMAND_TYPE_JUMP || cmd->cmd_type == COMMAND_TYPE_CALL) {
 
             char* lbl_start_ch = strchr(str_ptr, ':');
 
