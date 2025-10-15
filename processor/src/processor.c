@@ -362,13 +362,13 @@ cmd_callback_err_t cmd_popr(processor_t* proc, command_data_t a, ATTR_UNUSED com
         stack_data_t lhs = 0, rhs = 0;                                                                           \
                                                                                                                  \
         stk_err = stack_pop(&proc->stack, &rhs);                                                                 \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                       \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                \
                                                                                                                  \
         stk_err = stack_pop(&proc->stack, &lhs);                                                                 \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                       \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                \
                                                                                                                  \
         stk_err = stack_push(&proc->stack, lhs op rhs);                                                          \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                       \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                \
                                                                                                                  \
         return { CMD_CALLBACK_CONTINUE, err };                                                                   \
     }                                                                                                            \
