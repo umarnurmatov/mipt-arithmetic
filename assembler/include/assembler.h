@@ -41,9 +41,8 @@ typedef struct assembler_t
     command_data_t* cmdbuf;
     size_t          cmdbuf_size;
     size_t          cmdbuf_ind;
-
-    command_data_t* lblbuf;
-    size_t          lblbuf_size;
+    
+    assembler_lblbuf_t lblbuf;
 
     fileline_arr_t  filearr;
     fileline_t*     line_ptr;

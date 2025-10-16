@@ -39,8 +39,11 @@ int main(int argc, char* argv[])
         .cmdbuf = NULL,
         .cmdbuf_size = 0,
         .cmdbuf_ind = 0,
-        .lblbuf = NULL,
-        .lblbuf_size = 0,
+        .lblbuf = {
+            .buf = NULL,
+            .size = 0,
+            .capacity = 0
+        },
         .FILELINE_ARR_INITLIST(filearr)
     };
 
