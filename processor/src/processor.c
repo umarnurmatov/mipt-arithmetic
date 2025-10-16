@@ -246,14 +246,24 @@ processor_err_t processor_vldtr(processor_t* proc)
 
 void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const char* msg, const char* file, const char* func, int line)
 {
-    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "========== processor dump ==========\n\n");
-    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== error ==\n");
-    utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "    from: %s:%d %s()\n", file, line, func);
-    utils_colored_fprintf(stream, ANSI_COLOR_RED, "    err: %s\n    what: %s\n", processor_strerr(err), msg);
+    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "====================================\n");
+    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "========== processor dump ==========\n");
+    utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "====================================\n\n");
 
-    fprintf(stream, "\n");
+    if(err != PROCESSOR_ERR_NONE) {
+        utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== error ==\n");
+        utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "    from: %s:%d %s()\n", file, line, func);
+        utils_colored_fprintf(stream, ANSI_COLOR_RED, "    err: %s\n", processor_strerr(err));
+        if(msg) utils_colored_fprintf(stream, ANSI_COLOR_RED, "    what: %s\n", msg);
+        
+        fprintf(stream, "\n");
+    }
+
 
     BEGIN {
+        utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== stack == \n");
+        STACK_DUMP(&proc->stack, STACK_ERR_NONE, "");
+
         utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== regfile[%p] == \n", proc->regfile);
 
         if(processor_is_err(err, PROCESSOR_ERR_REGFILE_NULL)) GOTO_END;
@@ -261,6 +271,29 @@ void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const 
         for(size_t regi = 0; regi < SIZEOF(proc_regs); ++regi) {
             utils_colored_fprintf(stream, ANSI_COLOR_RED, "%s: ", proc_regs[regi].name);
             utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "%08x\n", (unsigned) proc->regfile[regi]);
+        }
+
+        fprintf(stream, "\n");
+
+        utils_colored_fprintf(stream, ANSI_COLOR_BOLD_RED, "== ram [%p] == \n", proc->ram);
+
+        if(processor_is_err(err, PROCESSOR_ERR_RAM_NULL)) GOTO_END;
+
+        fprintf(stream, "          ");
+        for(size_t rami = 0; rami < PROCESSOR_DUMP_RAM_BYTES_PER_LINE; ++rami) {
+            utils_colored_fprintf(stream, ANSI_COLOR_BOLD_WHITE, "[%08zx] ", rami);
+        }
+
+        fprintf(stream, "\n");
+
+        for(size_t rami = 0; rami < PROCESSOR_RAM_SIZE; ++rami) {
+            if(rami % PROCESSOR_DUMP_RAM_BYTES_PER_LINE == 0)
+                utils_colored_fprintf(stream, ANSI_COLOR_BOLD_WHITE, "[%08zx]  ", rami);
+
+            utils_colored_fprintf(stream, ANSI_COLOR_BLUE, "%08x   ", (unsigned) proc->ram[rami]);
+
+            if((rami + 1) % PROCESSOR_DUMP_RAM_BYTES_PER_LINE == 0)
+                fprintf(stream, "\n");
         }
 
         fprintf(stream, "\n");
@@ -285,9 +318,7 @@ void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const 
         }
     } END;
 
-    fprintf(stream, "\n");
-
-    fprintf(stream, "\n");
+    fprintf(stream, "\n\n");
 }
 
 #endif // _DEBUG
@@ -431,7 +462,9 @@ cmd_callback_err_t cmd_out(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
     stk_err = stack_pop(&proc->stack, &val);
     CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
 
-    printf("%d\n", val);
+    utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "=================\n");
+    utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "OUT: %d\n", val);
+    utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "=================\n\n");
 
     stk_err = stack_push(&proc->stack, val);
     CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
