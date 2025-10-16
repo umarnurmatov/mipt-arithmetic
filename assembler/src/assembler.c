@@ -22,6 +22,10 @@ if(!(expr)) {                                                   \
     return err;                                                 \
 }
 
+// FIXME
+#define ASSEMBLER_DUMP_SYNTAX_AND_RETURN(msg) \
+
+
 static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 static const size_t METAINFO_LENGTH = 2;
 static const size_t LBLBUF_INIT_SIZE = 10;
@@ -94,7 +98,7 @@ assembler_err_t assembler_write_to_file(FILE* file, assembler_t* asmblr)
     utils_assert(file);
     utils_assert(asmblr);
 
-    size_t bytecode_s = asmblr->cmdbuf_ind + 1;
+    size_t bytecode_s = asmblr->cmdbuf_ind;
     size_t bytes_wr = fwrite(asmblr->cmdbuf, sizeof(asmblr->cmdbuf[0]), bytecode_s, file);
     if(bytes_wr < bytecode_s)
         return ASSEMBLER_ERR_WRITE;
@@ -236,7 +240,7 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
                 command_data_t lblcode = 0;
 
                 if(sscanf(++lbl_start_ch, "%d%n", &lblcode, &bytes_rd) != 1) {
-                    assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
+                    assembler_dump_syntax_err(asmblr, "expected label as command argument");
                     return ASSEMBLER_ERR_SYNTAX;
                 }
                 if((unsigned) lblcode >= LBLBUF_MAX_SIZE) {
@@ -250,9 +254,33 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
             }
             else {
                 if(sscanf(str_ptr, "%d%n", &cmdarg, &bytes_rd) != 1) {
-                    assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
+                    assembler_dump_syntax_err(asmblr, "");
                     return ASSEMBLER_ERR_SYNTAX;
                 }
+            }
+        }
+
+        else if(cmd->cmd_type == COMMAND_TYPE_RAM) {
+            char* addr_start_ch = strchr(str_ptr, '[');
+
+            if(addr_start_ch) { 
+
+                if(sscanf(++addr_start_ch, "%[^]]%n", cmdstr, &bytes_rd) != 1) {
+                    assembler_dump_syntax_err(asmblr, "expected register name");
+                    return ASSEMBLER_ERR_SYNTAX;
+                }
+
+                const proc_reg_t* reg = _assembler_match_reg(cmdstr);
+                if(!reg) {
+                    assembler_dump_syntax_err(asmblr, "unknown register name");
+                    return ASSEMBLER_ERR_SYNTAX;
+                }
+                    
+                cmdarg = reg->num;
+            }
+            else {
+                assembler_dump_syntax_err(asmblr, "expected [<reg>]");
+                return ASSEMBLER_ERR_SYNTAX;
             }
         }
 
