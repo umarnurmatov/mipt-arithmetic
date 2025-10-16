@@ -24,7 +24,7 @@ typedef enum command_type_t
     COMMAND_TYPE_REGISTER,
     COMMAND_TYPE_JUMP,
     COMMAND_TYPE_CALL,
-    COMMAND_TYPE_RET
+    COMMAND_TYPE_RET,
     COMMAND_TYPE_RAM
 } command_type_t;
 
@@ -119,9 +119,9 @@ const command_t cmdarr[] =
 
 const proc_reg_t proc_regs[] = 
 {
-    { "RAX", 0x00 },
-    { "RBX", 0x01 },
-    { "RCX", 0x02 },
-    { "RDX", 0x03 }
+    { "S0", 0x00 }, // saved
+    { "S1", 0x01 }, // saved
+    { "S2", 0x02 }, // saved
+    { "S3", 0x03 }, // saved
 };
 
