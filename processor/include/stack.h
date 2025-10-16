@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "varinfo.h"
 #include "hashutils.h"
@@ -32,6 +33,10 @@
             .varname  = ""#VARNAME""  \
         }                             \
     }
+
+
+#define STACK_DUMP(STK, ERR, MSG) \
+    stack_dump(stderr, STK, ERR, MSG, __FILE__, __func__, __LINE__)
 
 #define IF_DEBUG(statement) statement
 
@@ -96,4 +101,11 @@ stack_err_t stack_pop(stack_t* stk, stack_data_t* val);
 const char* stack_strerr(const stack_err_t err);
 
 void stack_dtor(stack_t* stk);
+
+#ifdef _DEBUG
+
+void stack_dump(FILE* stream, stack_t* stk, stack_err_t err, const char* msg, 
+                        const char* filename, const char* funcname, int line);
+
+#endif 
 

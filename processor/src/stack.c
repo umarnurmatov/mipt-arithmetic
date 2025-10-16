@@ -1,14 +1,10 @@
 #include "stack.h"
 
 #include <assert.h>
-#include <stdio.h>
 
 #include "utils.h"
 
 #ifdef _DEBUG
-
-#define STACK_DUMP(STK, ERR, MSG) \
-    _stack_dump(stderr, STK, ERR, MSG, __FILE__, __func__, __LINE__)
 
 #ifdef CANARY_ENABLED
 
@@ -21,9 +17,6 @@
 #define CANARY_INDEX(index) index
 
 #endif // CANARY_ENABLED
-
-static void _stack_dump(FILE* stream, stack_t* stk, stack_err_t err, const char* msg, 
-                        const char* filename, const char* funcname, int line);
 
 static stack_err_t _stack_validate(stack_t* stk);
 
@@ -276,19 +269,20 @@ static stack_err_t _stack_validate(stack_t* stk)
     return STACK_ERR_NONE;
 }
 
-static void _stack_dump(FILE* stream, stack_t* stk, stack_err_t err, const char* msg, 
+void stack_dump(FILE* stream, stack_t* stk, stack_err_t err, const char* msg, 
                         const char* filename, const char* funcname, int line)
 {
-    fputs("================================\n", stream);
-    fprintf(stream, "what: %s\n", msg);
+    if(err != STACK_ERR_NONE) {
+        fprintf(stream, "what: %s\n", msg);
 
-    fprintf(
-        stream, 
-        "from: %s:%d %s()\n\n", 
-        filename, 
-        line, 
-        funcname
-    );
+        fprintf(
+            stream, 
+            "from: %s:%d %s()\n\n", 
+            filename, 
+            line, 
+            funcname
+        );
+    }
 
     BEGIN {
         if(err == STACK_ERR_NULL) {
@@ -373,7 +367,7 @@ static void _stack_dump(FILE* stream, stack_t* stk, stack_err_t err, const char*
         fputs("}\n", stream);
     } END;
 
-    fputs("================================\n\n", stream);
+    fputs("\n\n", stream);
 }
 
 static utils_hash_t _stack_recalc_hashsum(stack_t* stk)
