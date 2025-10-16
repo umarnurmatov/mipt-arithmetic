@@ -43,6 +43,10 @@ static const size_t METAINFO_LENGTH = 2;
 
 static const size_t PROCESSOR_DUMP_BYTES_PER_LINE = 4;
 
+static const size_t PROCESSOR_RAM_SIZE = 100;
+
+static const size_t PROCESSOR_DUMP_RAM_BYTES_PER_LINE = 10;
+
 processor_err_t _processor_verify_metadata(processor_t* proc);
 
 processor_err_t processor_ctor(processor_t* proc, FILE* file)
@@ -552,19 +556,56 @@ extern cmd_callback_err_t cmd_ret(processor_t* proc, ATTR_UNUSED command_data_t 
 {
     processor_err_t err = PROCESSOR_ERR_NONE;
 
+extern cmd_callback_err_t cmd_pushm(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    processor_err_t err = PROCESSOR_ERR_NONE;
+
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
         proc, 
         (unsigned) a < SIZEOF(proc_regs), 
         err, 
         PROCESSOR_ERR_REG_UNKNOWN
     );
-    
-    stack_data_t stkdata = 0;
-    stack_err_t stk_err = stack_pop(&proc->stack, &stkdata);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
 
-    proc->pc = (size_t) stkdata;
+    command_data_t ram_addr = proc->regfile[a];
+
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(
+        proc, 
+        (unsigned) ram_addr < PROCESSOR_RAM_SIZE, 
+        err, 
+        PROCESSOR_ERR_RAM_OVERFLOW
+    );
+
+    command_data_t ramdata = proc->ram[ram_addr];
+
+    stack_err_t stk_err = stack_push(&proc->stack, ramdata);
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
 
+extern cmd_callback_err_t cmd_popm(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    processor_err_t err = PROCESSOR_ERR_NONE;
+
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(
+        proc, 
+        (unsigned) a < SIZEOF(proc_regs), 
+        err, 
+        PROCESSOR_ERR_REG_UNKNOWN
+    );
+
+    command_data_t ram_addr = proc->regfile[a];
+
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(
+        proc, 
+        (unsigned) ram_addr < PROCESSOR_RAM_SIZE, 
+        err, 
+        PROCESSOR_ERR_RAM_OVERFLOW
+    );
+
+    stack_err_t stk_err = stack_pop(&proc->stack, &proc->ram[ram_addr]);
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+
+    return { CMD_CALLBACK_CONTINUE, err };
+}

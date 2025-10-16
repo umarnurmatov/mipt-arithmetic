@@ -25,6 +25,7 @@ typedef enum command_type_t
     COMMAND_TYPE_JUMP,
     COMMAND_TYPE_CALL,
     COMMAND_TYPE_RET
+    COMMAND_TYPE_RAM
 } command_type_t;
 
 typedef enum cmd_callback_ret_t
@@ -64,6 +65,7 @@ typedef struct processor_t
     size_t          cmdbuf_size;
     size_t          pc;
     command_data_t* regfile;
+    command_data_t* ram;
 } processor_t;
 
 extern cmd_callback_err_t cmd_push (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
@@ -85,9 +87,11 @@ extern cmd_callback_err_t cmd_je   (            processor_t* proc,             c
 extern cmd_callback_err_t cmd_jne  (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 extern cmd_callback_err_t cmd_call (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 extern cmd_callback_err_t cmd_ret  (            processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_pushm(            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_popm (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 
 // TODO make validator
-const command_t cmdarr[] = 
+const command_t cmdarr[] =
 {
     { "PUSH" , 0x00, 1, COMMAND_TYPE_STACK            , cmd_push  },
     { "PUSHR", 0x01, 1, COMMAND_TYPE_REGISTER         , cmd_pushr },
@@ -109,6 +113,8 @@ const command_t cmdarr[] =
     { "JNE"  , 0x11, 1, COMMAND_TYPE_JUMP             , cmd_jne   },
     { "CALL" , 0x12, 1, COMMAND_TYPE_CALL             , cmd_call  },
     { "RET"  , 0x13, 0, COMMAND_TYPE_RET              , cmd_ret   },
+    { "PUSHM", 0x14, 1, COMMAND_TYPE_RAM              , cmd_pushm },
+    { "POPM" , 0x15, 1, COMMAND_TYPE_RAM              , cmd_popm  },
 };
 
 const proc_reg_t proc_regs[] = 
