@@ -20,7 +20,7 @@
 
 #define PROCESSOR_ASSERT_OK_OR_RETURN_ERR(proc, err)                           \
     if((err = processor_vldtr(proc)) != PROCESSOR_ERR_NONE) {                  \
-        PROCESSOR_DUMP(proc, err, "");                                         \
+        PROCESSOR_DUMP(proc, err, NULL);                                       \
         return err;                                                            \
     }
 
@@ -49,54 +49,17 @@ static const size_t PROCESSOR_DUMP_RAM_BYTES_PER_LINE = 10;
 
 processor_err_t _processor_verify_metadata(processor_t* proc);
 
+processor_err_t _processor_read_bytecode(processor_t* proc, FILE* file);
+
 processor_err_t processor_ctor(processor_t* proc, FILE* file)
 {
     utils_assert(file);
     utils_assert(proc);
 
-    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
-        stack_ctor(&proc->stack, 1) == STACK_ERR_NONE,
-        proc,
-        PROCESSOR_ERR_CMD_STACK_ERR,
-        ""
-    );
+    processor_err_t err = _processor_read_bytecode(proc, file);
+    if(err != PROCESSOR_ERR_NONE)
+        return err;
 
-    size_t file_size_b = get_file_size(file);
-    command_data_t* cmdbuf_tmp =
-        (command_data_t*)calloc(1, file_size_b);
-    
-    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
-        cmdbuf_tmp != NULL, 
-        proc, 
-        PROCESSOR_ERR_ALLOC_FAIL, 
-        "error allocating command bufer"
-    );
-
-    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
-        file_size_b % sizeof cmdbuf_tmp[0] == 0,
-        proc,
-        PROCESSOR_ERR_PARSE_ERR,
-        "file size is not multiple of cmd size"
-    );
-    
-    proc->cmdbuf      = cmdbuf_tmp;
-    proc->cmdbuf_size = file_size_b / sizeof cmdbuf_tmp[0];
-
-    size_t bytes_rd = 
-        fread(
-            cmdbuf_tmp, 
-            sizeof(proc->cmdbuf[0]), 
-            proc->cmdbuf_size, 
-            file
-        );
-
-    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
-        bytes_rd >= proc->cmdbuf_size,
-        proc,
-        PROCESSOR_ERR_READ_ERR,
-        ""
-    );
-        
     PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
         _processor_verify_metadata(proc) == PROCESSOR_ERR_NONE,
         proc,
@@ -109,13 +72,24 @@ processor_err_t processor_ctor(processor_t* proc, FILE* file)
     command_data_t* regfile_tmp = (command_data_t*)calloc(SIZEOF(proc_regs), sizeof(command_data_t));
 
     PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
-        cmdbuf_tmp != NULL, 
+        regfile_tmp != NULL, 
         proc, 
         PROCESSOR_ERR_ALLOC_FAIL, 
         "error allocating register file"
     );
 
     proc->regfile = regfile_tmp;
+
+    command_data_t* ram_tmp = (command_data_t*)calloc(PROCESSOR_RAM_SIZE, sizeof(ram_tmp[0]));
+
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        ram_tmp != NULL, 
+        proc, 
+        PROCESSOR_ERR_ALLOC_FAIL, 
+        "error allocating RAM"
+    );
+
+    proc->ram = ram_tmp;
 
     return PROCESSOR_ERR_NONE;
 }
@@ -134,11 +108,14 @@ processor_err_t processor_run(processor_t *proc)
     command_data_t cmdarg_b = 0;
 
     for( ;; ) {
+
+        PROCESSOR_DUMP(proc, err, NULL);
+
         PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
             proc->pc < proc->cmdbuf_size,
             proc,
             PROCESSOR_ERR_END_OF_BUFFER,
-            ""
+            NULL 
         );
 
         cmdcode = proc->cmdbuf[proc->pc++];
@@ -147,7 +124,7 @@ processor_err_t processor_run(processor_t *proc)
             (unsigned) cmdcode < SIZEOF(cmdarr),
             proc,
             PROCESSOR_ERR_CMD_UNKNOWN,
-            ""
+            NULL 
         );
         
         if(cmdarr[cmdcode].arg_cnt == 2) {
@@ -176,6 +153,7 @@ void processor_dtor(processor_t* proc)
     stack_dtor(&proc->stack);
     NFREE(proc->cmdbuf);
     NFREE(proc->regfile);
+    NFREE(proc->ram);
 }
 
 void processor_set_err(processor_err_t* err, processor_err_t err_new)
@@ -219,6 +197,10 @@ const char * processor_strerr(processor_err_t onehot)
             return "func domain error";
         case PROCESSOR_ERR_INVALID_PC:
             return "invalid address";
+        case PROCESSOR_ERR_RAM_OVERFLOW:
+            return "RAM address overflow";
+        case PROCESSOR_ERR_RAM_NULL:
+            return "RAM buffer is NULL";
         default:
             return "unknown";
     }
@@ -234,6 +216,57 @@ processor_err_t _processor_verify_metadata(processor_t* proc)
     return PROCESSOR_ERR_NONE;
 }
 
+processor_err_t _processor_read_bytecode(processor_t* proc, FILE* file)
+{
+    utils_assert(file);
+    utils_assert(proc);
+
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        stack_ctor(&proc->stack, 1) == STACK_ERR_NONE,
+        proc,
+        PROCESSOR_ERR_CMD_STACK_ERR,
+        NULL 
+    );
+
+    size_t file_size_b = get_file_size(file);
+    command_data_t* cmdbuf_tmp =
+        (command_data_t*)calloc(1, file_size_b);
+    
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        cmdbuf_tmp != NULL, 
+        proc, 
+        PROCESSOR_ERR_ALLOC_FAIL, 
+        "error allocating command bufer"
+    );
+
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        file_size_b % sizeof cmdbuf_tmp[0] == 0,
+        proc,
+        PROCESSOR_ERR_PARSE_ERR,
+        "file size is not multiple of cmd size"
+    );
+    
+    proc->cmdbuf      = cmdbuf_tmp;
+    proc->cmdbuf_size = file_size_b / sizeof cmdbuf_tmp[0];
+
+    size_t bytes_rd = 
+        fread(
+            cmdbuf_tmp, 
+            sizeof(proc->cmdbuf[0]), 
+            proc->cmdbuf_size, 
+            file
+        );
+
+    PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
+        bytes_rd >= proc->cmdbuf_size,
+        proc,
+        PROCESSOR_ERR_READ_ERR,
+        ""
+    );
+
+    return PROCESSOR_ERR_NONE;
+}
+
 #ifdef _DEBUG
 
 processor_err_t processor_vldtr(processor_t* proc)
@@ -243,6 +276,9 @@ processor_err_t processor_vldtr(processor_t* proc)
         processor_set_err(&err, PROCESSOR_ERR_CMDBUF_NULL);
 
     if(proc->regfile == NULL)
+        processor_set_err(&err, PROCESSOR_ERR_REGFILE_NULL);
+
+    if(proc->ram == NULL)
         processor_set_err(&err, PROCESSOR_ERR_REGFILE_NULL);
 
     return err;
@@ -555,6 +591,15 @@ extern cmd_callback_err_t cmd_call(processor_t* proc, command_data_t a, ATTR_UNU
 extern cmd_callback_err_t cmd_ret(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
     processor_err_t err = PROCESSOR_ERR_NONE;
+
+    stack_data_t stkdata = 0;
+    stack_err_t stk_err = stack_pop(&proc->stack, &stkdata);
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+
+    proc->pc = (size_t) stkdata;
+
+    return { CMD_CALLBACK_CONTINUE, err };
+}
 
 extern cmd_callback_err_t cmd_pushm(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
