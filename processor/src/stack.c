@@ -137,7 +137,8 @@ stack_err_t stack_pop(stack_t* stk, stack_data_t* val)
     );
 
     *val = stk->buffer[CANARY_INDEX(stk->size--) - 1];
-
+    stk->buffer[CANARY_INDEX(stk->size)] = POISON;
+    //
     // if((double)stk->size / (double)stk->capacity <= CAPACITY_SHRINK_FRACTION) {
     //     err = _stack_realloc(stk, stk->capacity / CAPACITY_EXP);
     //     if(err != STACK_ERR_NONE) {
@@ -145,10 +146,11 @@ stack_err_t stack_pop(stack_t* stk, stack_data_t* val)
     //         return err;
     //     }
     //
-    //     IF_DEBUG(
-    //         _stack_recalc_hashsum(stk);
-    //     );
     // }
+
+    IF_DEBUG(
+        _stack_recalc_hashsum(stk);
+    );
 
     return err;
 }
@@ -341,12 +343,12 @@ void stack_dump(FILE* stream, stack_t* stk, stack_err_t err, const char* msg,
         );
 
         for(size_t i = 0; i < stk->capacity; ++i)
-            if(stk->buffer[i] == POISON)
+            if(stk->buffer[CANARY_INDEX(i)] == POISON)
                 fprintf(
                     stream, 
-                    "    [%lu] = %d \t [POISON]\n", 
+                    "    [%lu] = %x \t [POISON]\n", 
                     i, 
-                    stk->buffer[CANARY_INDEX(i)]
+                    (unsigned) stk->buffer[CANARY_INDEX(i)]
                 );
             else
                 fprintf(
