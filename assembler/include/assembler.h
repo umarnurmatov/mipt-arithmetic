@@ -22,6 +22,20 @@ typedef enum assembler_expr_t
     ASSEMBLER_EXPR_LBL
 } assembler_expr_t;
 
+typedef struct assembler_lbl_t
+{
+    char* lblstr;
+    size_t lblstr_len;
+    command_data_t addr;
+} assembler_lbl_t;
+
+typedef struct assembler_lblbuf_t
+{
+    assembler_lbl_t* buf;
+    size_t size;
+    size_t capacity;
+} assembler_lblbuf_t;
+
 typedef struct assembler_t
 {
     command_data_t* cmdbuf;

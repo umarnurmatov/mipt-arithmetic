@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "assertutils.h"
 #include "colorutils.h"
@@ -338,35 +339,36 @@ static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
     asmblr->lblbuf[lblcode] = (command_data_t) (asmblr->cmdbuf_ind);
     return ASSEMBLER_ERR_NONE;
 
+static assembler_lbl_t* _assembler_find_lbl(assembler_t* asmblr, char* lblstr)
+{
+    for(size_t bufi = 0; bufi < asmblr->lblbuf.size; ++bufi) 
+        if(strncmp(lblstr, asmblr->lblbuf.buf[bufi].lblstr, LBL_MAX_LENGTH) == 0)
+                return &asmblr->lblbuf.buf[bufi];
 }
 
-static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t new_size)
 {
     utils_assert(asmblr); 
 
-    if(!asmblr->lblbuf)
-        asmblr->lblbuf_size = 0;
+    if(!asmblr->lblbuf.buf) {
+        asmblr->lblbuf.capacity = 0;
+        asmblr->lblbuf.size     = 0;
 
-    size_t lblbuf_tmp_size = new_size;
-    command_data_t* lblbuf_tmp = 
-        (command_data_t*)realloc(asmblr->lblbuf, lblbuf_tmp_size * sizeof(asmblr->lblbuf[0]));
+    assembler_lbl_t* lblbuf_tmp = 
 
     if(lblbuf_tmp == NULL)
         return ASSEMBLER_ERR_ALLOC_FAIL;
 
-    if(lblbuf_tmp_size > asmblr->lblbuf_size)
-        memset(
-            asmblr->lblbuf_size + lblbuf_tmp, 
-            LBLBUF_PLACEHOLDER, 
-            (lblbuf_tmp_size - asmblr->lblbuf_size) * sizeof(lblbuf_tmp[0])
-        );
-
-    asmblr->lblbuf      = lblbuf_tmp;
-    asmblr->lblbuf_size = lblbuf_tmp_size;
+    asmblr->lblbuf.buf      = lblbuf_tmp;
 
     return ASSEMBLER_ERR_NONE;
 }
 
+static void _assembler_free_lblbuf(assembler_t* asmblr)
+{
+    for(size_t bufi = 0; bufi < asmblr->lblbuf.size; ++bufi)
+        free(asmblr->lblbuf.buf[bufi].lblstr);
+    NFREE(asmblr->lblbuf.buf);
+}
 static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_listing)
 {
     ASSEMBLER_ASSERT_OK(asmblr)
