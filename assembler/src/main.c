@@ -52,13 +52,9 @@ int main(int argc, char* argv[])
 
     assembler_err_t asm_err = ASSEMBLER_ERR_NONE;
 
-    if(asm_err != ASSEMBLER_ERR_NONE) {
-        assembler_dtor(&asmblr);
-        return EXIT_FAILURE;
-    }
     asm_err = assembler_ctor(input_file, &asmblr);
     if(asm_err != ASSEMBLER_ERR_NONE) {
-        assembler_dtor(&asmblr);
+        fclose(input_file);
         return EXIT_FAILURE;
     }
 
