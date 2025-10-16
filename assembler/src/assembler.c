@@ -327,7 +327,11 @@ static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t new
         return ASSEMBLER_ERR_ALLOC_FAIL;
 
     if(lblbuf_tmp_size > asmblr->lblbuf_size)
-        memset(asmblr->lblbuf_size + lblbuf_tmp, LBLBUF_PLACEHOLDER, (lblbuf_tmp_size - asmblr->lblbuf_size) * sizeof(lblbuf_tmp[0]));
+        memset(
+            asmblr->lblbuf_size + lblbuf_tmp, 
+            LBLBUF_PLACEHOLDER, 
+            (lblbuf_tmp_size - asmblr->lblbuf_size) * sizeof(lblbuf_tmp[0])
+        );
 
     asmblr->lblbuf      = lblbuf_tmp;
     asmblr->lblbuf_size = lblbuf_tmp_size;
