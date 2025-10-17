@@ -654,3 +654,20 @@ extern cmd_callback_err_t cmd_popm(processor_t* proc, command_data_t a, ATTR_UNU
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
+
+extern cmd_callback_err_t cmd_in(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    processor_err_t err = PROCESSOR_ERR_NONE;
+    stack_err_t stk_err = STACK_ERR_NONE;
+
+    stack_data_t val = 0;
+    utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "IN: ");
+
+    int rd = scanf("%d", &val);
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(proc, rd == 1, err, PROCESSOR_ERR_READ_ERR);
+
+    stk_err = stack_push(&proc->stack, val);
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+
+    return { CMD_CALLBACK_CONTINUE, err };
+}
