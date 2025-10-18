@@ -30,7 +30,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(CC) $(CPPFLAGS) -c $< -o $@
 
 .PHONY: run
-run: FLAGS = --in=/home/n1njaeng1neer/source/arithmetic/assembler/prog.o
+run: FLAGS = --in=/home/n1njaeng1neer/source/arithmetic/assembler/prog.o --dump=dump.txt
 run: $(BUILD_DIR)/$(EXECUTABLE)
 	@./$(BUILD_DIR)/$(EXECUTABLE) $(FLAGS)
 

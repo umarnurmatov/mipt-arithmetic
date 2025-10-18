@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "utils.h"
 #include "stack.h"
@@ -66,6 +67,8 @@ typedef struct processor_t
     size_t          pc;
     command_data_t* regfile;
     command_data_t* ram;
+
+    FILE* dump_stream;
 } processor_t;
 
 extern cmd_callback_err_t cmd_push (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);

@@ -14,18 +14,18 @@
 
 #ifdef _DEBUG
 
-#define PROCESSOR_DUMP(proc, err, msg) \
-    processor_dump(stderr, proc, err, msg, __FILE__, __func__, __LINE__);
+#define PROCESSOR_DUMP(stream, proc, err, msg) \
+    processor_dump(stream, proc, err, msg, __FILE__, __func__, __LINE__);
 
 #define PROCESSOR_ASSERT_OK_OR_RETURN_ERR(proc, err)                           \
     if((err = processor_vldtr(proc)) != PROCESSOR_ERR_NONE) {                  \
-        PROCESSOR_DUMP(proc, err, NULL);                                       \
+        PROCESSOR_DUMP(stderr, proc, err, NULL);                               \
         return err;                                                            \
     }
 
 #define PROCESSOR_VERIFY_OK_OR_RETURN_ERR(expr, proc, err, msg)                \
     if(!(expr)) {                                                              \
-        PROCESSOR_DUMP(proc, err, msg);                                        \
+        PROCESSOR_DUMP(stderr, proc, err, msg);                                \
         return err;                                                            \
     }
 
@@ -110,6 +110,8 @@ processor_err_t processor_run(processor_t *proc)
 
     for( ;; ) {
 
+        PROCESSOR_DUMP(proc->dump_stream, proc, err, NULL); 
+
         PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
             proc->pc < proc->cmdbuf_size,
             proc,
@@ -163,6 +165,11 @@ void processor_set_err(processor_err_t* err, processor_err_t err_new)
 int processor_is_err(processor_err_t err, processor_err_t is_set)
 {
     return err & is_set;
+}
+
+void processor_set_dump_file(processor_t* proc, FILE* stream)
+{
+    proc->dump_stream = stream;
 }
 
 const char * processor_strerr(processor_err_t onehot)
@@ -301,7 +308,7 @@ void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const 
 
     BEGIN {
         utils_colored_fprintf(stream, ANSI_COLOR_MAGENTA, "== stack == \n");
-        STACK_DUMP(&proc->stack, STACK_ERR_NONE, "");
+        STACK_DUMP_STREAM(stream, &proc->stack, STACK_ERR_NONE, "");
 
         utils_colored_fprintf(stream, ANSI_COLOR_MAGENTA, "== regfile[%p] == \n", proc->regfile);
 
@@ -359,8 +366,8 @@ void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const 
         }
     } END;
 
-    fprintf(stream, "\n\n");
-    utils_colored_fprintf(stream, ANSI_COLOR_MAGENTA, "====================================\n");
+    fprintf(stream, "\n");
+    utils_colored_fprintf(stream, ANSI_COLOR_MAGENTA, "====================================\n\n");
 }
 
 #endif // _DEBUG

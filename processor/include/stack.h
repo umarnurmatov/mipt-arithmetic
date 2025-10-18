@@ -34,9 +34,11 @@
         }                             \
     }
 
+#define STACK_DUMP_STREAM(STRM, STK, ERR, MSG) \
+    stack_dump(STRM, STK, ERR, MSG, __FILE__, __func__, __LINE__)
 
 #define STACK_DUMP(STK, ERR, MSG) \
-    stack_dump(stderr, STK, ERR, MSG, __FILE__, __func__, __LINE__)
+    STACK_DUMP_STREAM(stderr, STK, ERR, MSG)
 
 #define IF_DEBUG(statement) statement
 

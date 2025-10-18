@@ -48,6 +48,8 @@ void processor_set_err(processor_err_t* err, processor_err_t err_new);
 
 int processor_is_err(processor_err_t err, processor_err_t is_set);
 
+void processor_set_dump_file(processor_t* proc, FILE* stream);
+
 const char * processor_strerr(processor_err_t onehot);
 
 #ifdef _DEBUG
