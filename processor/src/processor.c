@@ -379,6 +379,8 @@ void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const 
 
 cmd_callback_err_t cmd_push(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
     stack_err_t stk_err = stack_push(&proc->stack, a);
 
@@ -389,6 +391,8 @@ cmd_callback_err_t cmd_push(processor_t* proc, command_data_t a, ATTR_UNUSED com
 
 cmd_callback_err_t cmd_pushr(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
@@ -408,6 +412,8 @@ cmd_callback_err_t cmd_pushr(processor_t* proc, command_data_t a, ATTR_UNUSED co
 
 cmd_callback_err_t cmd_popr(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
@@ -429,6 +435,8 @@ cmd_callback_err_t cmd_popr(processor_t* proc, command_data_t a, ATTR_UNUSED com
 #define PROCESSOR_GENERATE_CALLBACK_ARITHM_BINARY_(name, op)                                                     \
     cmd_callback_err_t cmd_##name(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b) \
     {                                                                                                            \
+        utils_assert(proc);                                                                                      \
+                                                                                                                 \
         processor_err_t err = PROCESSOR_ERR_NONE;                                                                \
         stack_err_t stk_err = STACK_ERR_NONE;                                                                    \
                                                                                                                  \
@@ -452,6 +460,8 @@ PROCESSOR_GENERATE_CALLBACK_ARITHM_BINARY_(mul, *);
 
 cmd_callback_err_t cmd_div(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
     stack_err_t stk_err = STACK_ERR_NONE;
 
@@ -473,6 +483,7 @@ cmd_callback_err_t cmd_div(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
 
 cmd_callback_err_t cmd_sqr(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
     processor_err_t err = PROCESSOR_ERR_NONE;
     stack_err_t stk_err = STACK_ERR_NONE;
 
@@ -495,6 +506,8 @@ cmd_callback_err_t cmd_hlt(ATTR_UNUSED processor_t* proc, ATTR_UNUSED command_da
 
 cmd_callback_err_t cmd_out(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
     stack_err_t stk_err = STACK_ERR_NONE;
 
@@ -514,6 +527,8 @@ cmd_callback_err_t cmd_out(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
 
 cmd_callback_err_t cmd_jmp(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(                                                               
@@ -538,6 +553,8 @@ cmd_callback_err_t cmd_jmp(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
 #define PROCESSOR_GENERATE_CALLBACK_J_(name, sign)                                                      \
     cmd_callback_err_t cmd_j##name(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)   \
     {                                                                                                   \
+        utils_assert(proc);                                                                             \
+                                                                                                        \
         processor_err_t err = PROCESSOR_ERR_NONE;                                                       \
         stack_err_t stk_err = STACK_ERR_NONE;                                                           \
                                                                                                         \
@@ -578,6 +595,8 @@ PROCESSOR_GENERATE_CALLBACK_J_(ne, !=);
 
 extern cmd_callback_err_t cmd_call(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     stack_err_t stk_err = stack_push(&proc->stack, (command_data_t) proc->pc);
@@ -590,6 +609,8 @@ extern cmd_callback_err_t cmd_call(processor_t* proc, command_data_t a, ATTR_UNU
 
 extern cmd_callback_err_t cmd_ret(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     stack_data_t stkdata = 0;
@@ -603,6 +624,8 @@ extern cmd_callback_err_t cmd_ret(processor_t* proc, ATTR_UNUSED command_data_t 
 
 extern cmd_callback_err_t cmd_pushm(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
@@ -631,6 +654,8 @@ extern cmd_callback_err_t cmd_pushm(processor_t* proc, command_data_t a, ATTR_UN
 
 extern cmd_callback_err_t cmd_popm(processor_t* proc, command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
@@ -650,13 +675,15 @@ extern cmd_callback_err_t cmd_popm(processor_t* proc, command_data_t a, ATTR_UNU
     );
 
     stack_err_t stk_err = stack_pop(&proc->stack, &proc->ram[ram_addr]);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
 
 extern cmd_callback_err_t cmd_in(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
 {
+    utils_assert(proc);
+
     processor_err_t err = PROCESSOR_ERR_NONE;
     stack_err_t stk_err = STACK_ERR_NONE;
 
