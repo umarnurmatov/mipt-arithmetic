@@ -127,13 +127,18 @@ const proc_reg_t proc_regs[] =
     { "S1", 0x01 }, // saved
     { "S2", 0x02 }, // saved
     { "S3", 0x03 }, // saved
-    { "T0", 0x04 }, // temporary
-    { "T1", 0x05 }, // temporary
-    { "T2", 0x06 }, // temporary
-    { "T3", 0x07 }, // temporary
-    { "A0", 0x08 }, // arg / ret
-    { "A1", 0x09 }, // arg / ret
-    { "A2", 0x0A }, // arg
-    { "A3", 0x0B }, // arg
+    { "S4", 0x04 }, // saved
+                    
+    { "T0", 0x05 }, // temporary
+    { "T1", 0x06 }, // temporary
+    { "T2", 0x07 }, // temporary
+    { "T3", 0x08 }, // temporary
+    { "T4", 0x09 }, // temporary
+                    
+    { "A0", 0x0A }, // arg / ret
+    { "A1", 0x0B }, // arg / ret
+    { "A2", 0x0C }, // arg
+    { "A3", 0x0D }, // arg
+    { "A4", 0x0E }, // arg
 };
 
