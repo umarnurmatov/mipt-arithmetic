@@ -671,3 +671,39 @@ extern cmd_callback_err_t cmd_in(processor_t* proc, ATTR_UNUSED command_data_t a
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
+
+extern cmd_callback_err_t cmd_draw(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b)
+{
+    utils_assert(proc);
+
+    processor_err_t err = PROCESSOR_ERR_NONE;
+
+    const char header[] = " proc vram ";
+
+    for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE - SIZEOF(header); ++i)
+        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "==");
+
+    utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "%s", header);
+
+    for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE - SIZEOF(header); ++i)
+        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "==");
+
+    fprintf(stdout, "\n");
+
+    for(size_t rami = 0; rami < PROCESSOR_RAM_SIZE; ++rami) {
+        int ch = proc->ram[rami];
+        if(isgraph(ch))
+            utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "%c ", proc->ram[rami]);
+        else
+            fprintf(stdout, "  ");
+        if((rami + 1) % PROCESSOR_DUMP_RAM_BYTES_PER_LINE == 0)
+            fprintf(stdout, "\n");
+    }
+
+    for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE + 2 * SIZEOF(header); ++i)
+        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "=");
+
+    fprintf(stdout, "\n\n");
+
+    return { CMD_CALLBACK_CONTINUE, err };
+}

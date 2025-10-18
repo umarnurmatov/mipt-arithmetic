@@ -90,6 +90,7 @@ extern cmd_callback_err_t cmd_ret  (            processor_t* proc, ATTR_UNUSED c
 extern cmd_callback_err_t cmd_pushm(            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 extern cmd_callback_err_t cmd_popm (            processor_t* proc,             command_data_t a, ATTR_UNUSED command_data_t b);
 extern cmd_callback_err_t cmd_in   (            processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
+extern cmd_callback_err_t cmd_draw (            processor_t* proc, ATTR_UNUSED command_data_t a, ATTR_UNUSED command_data_t b);
 
 // TODO make validator
 const command_t cmdarr[] =
@@ -116,7 +117,8 @@ const command_t cmdarr[] =
     { "RET"  , 0x13, 0, COMMAND_TYPE_RET              , cmd_ret   },
     { "PUSHM", 0x14, 1, COMMAND_TYPE_RAM              , cmd_pushm },
     { "POPM" , 0x15, 1, COMMAND_TYPE_RAM              , cmd_popm  },
-    { "IN"   , 0x16, 0, COMMAND_TYPE_CONTROL          , cmd_in    }
+    { "IN"   , 0x16, 0, COMMAND_TYPE_CONTROL          , cmd_in    },
+    { "DRAW" , 0x17, 0, COMMAND_TYPE_CONTROL          , cmd_draw  }
 };
 
 const proc_reg_t proc_regs[] = 
