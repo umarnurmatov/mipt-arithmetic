@@ -365,14 +365,14 @@ void processor_dump(FILE* stream, processor_t* proc, processor_err_t err, const 
 
 #endif // _DEBUG
 
-#define CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err)                \
+#define CALLBACK_VERIFY_STACK_OR_RETURN_ERR                                    \
     if(stk_err != STACK_ERR_NONE) {                                            \
         processor_set_err(&err, PROCESSOR_ERR_CMD_STACK_ERR);                  \
         processor_dump(stderr, proc, err, "", __FILE__, __func__, __LINE__);   \
         return { CMD_CALLBACK_ERR, err };                                      \
     }
 
-#define CALLBACK_VERIFY_OK_OR_RETURN_ERR(proc, expr, err, err_set)             \
+#define CALLBACK_VERIFY_OK_OR_RETURN_ERR(expr, err_set)                        \
     if(!(expr)) {                                                              \
         processor_set_err(&err, err_set);                                      \
         processor_dump(stderr, proc, err, "", __FILE__, __func__, __LINE__);   \
@@ -386,7 +386,7 @@ cmd_callback_err_t cmd_push(processor_t* proc, command_data_t a, ATTR_UNUSED com
     processor_err_t err = PROCESSOR_ERR_NONE;
     stack_err_t stk_err = stack_push(&proc->stack, a);
 
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -398,16 +398,14 @@ cmd_callback_err_t cmd_pushr(processor_t* proc, command_data_t a, ATTR_UNUSED co
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
-        proc,
         (unsigned) a < SIZEOF(proc_regs), 
-        err, 
         PROCESSOR_ERR_REG_UNKNOWN
     );
 
     command_data_t regdata = proc->regfile[a];
 
     stack_err_t stk_err = stack_push(&proc->stack, regdata);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -419,15 +417,13 @@ cmd_callback_err_t cmd_popr(processor_t* proc, command_data_t a, ATTR_UNUSED com
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
-        proc, 
         (unsigned) a < SIZEOF(proc_regs), 
-        err, 
         PROCESSOR_ERR_REG_UNKNOWN
     );
     
     stack_data_t stkdata = 0;
     stack_err_t stk_err = stack_pop(&proc->stack, &stkdata);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     proc->regfile[a] = stkdata;
 
@@ -445,13 +441,13 @@ cmd_callback_err_t cmd_popr(processor_t* proc, command_data_t a, ATTR_UNUSED com
         stack_data_t lhs = 0, rhs = 0;                                                                           \
                                                                                                                  \
         stk_err = stack_pop(&proc->stack, &rhs);                                                                 \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR;                                                                     \
                                                                                                                  \
         stk_err = stack_pop(&proc->stack, &lhs);                                                                 \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR;                                                                     \
                                                                                                                  \
         stk_err = stack_push(&proc->stack, lhs op rhs);                                                          \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                                \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR;                                                                     \
                                                                                                                  \
         return { CMD_CALLBACK_CONTINUE, err };                                                                   \
     }                                                                                                            \
@@ -470,15 +466,18 @@ cmd_callback_err_t cmd_div(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
     stack_data_t lhs = 0, rhs = 0;
 
     stk_err = stack_pop(&proc->stack, &rhs);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     stk_err = stack_pop(&proc->stack, &lhs);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
-    CALLBACK_VERIFY_OK_OR_RETURN_ERR(proc, rhs != 0, err, PROCESSOR_ERR_ZERO_DIV);
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(
+        rhs != 0, 
+        PROCESSOR_ERR_ZERO_DIV
+    );
 
     stk_err = stack_push(&proc->stack, lhs / rhs);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -492,12 +491,12 @@ cmd_callback_err_t cmd_sqr(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
 
     stack_data_t val = 0;
     stk_err = stack_pop(&proc->stack, &val);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
-    CALLBACK_VERIFY_OK_OR_RETURN_ERR(proc, val > 0, err, PROCESSOR_ERR_DOMAIN_ERR);
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(val > 0, PROCESSOR_ERR_DOMAIN_ERR);
 
     stk_err = stack_push(&proc->stack, (stack_data_t) sqrtf((float) val));
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -516,14 +515,14 @@ cmd_callback_err_t cmd_out(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
 
     stack_data_t val = 0;
     stk_err = stack_pop(&proc->stack, &val);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "== out ==\n"    );
     utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "OUT: %d\n",  val);
     utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "=========\n"    );
 
     stk_err = stack_push(&proc->stack, val);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -535,16 +534,12 @@ cmd_callback_err_t cmd_jmp(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(                                                               
-        proc,                                                                                       
         (size_t) a < proc->cmdbuf_size,                                                             
-        err,                                                                                        
         PROCESSOR_ERR_INVALID_PC                                                                    
     );                                                                                              
                                                                                                     
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(                                                               
-        proc,                                                                                       
         (size_t) a < proc->cmdbuf_size,                                                             
-        err,                                                                                        
         PROCESSOR_ERR_INVALID_PC                                                                    
     );                                                                                              
 
@@ -562,26 +557,22 @@ cmd_callback_err_t cmd_jmp(processor_t* proc, ATTR_UNUSED command_data_t a, ATTR
         stack_err_t stk_err = STACK_ERR_NONE;                                                           \
                                                                                                         \
         CALLBACK_VERIFY_OK_OR_RETURN_ERR(                                                               \
-            proc,                                                                                       \
             (size_t) a < proc->cmdbuf_size,                                                             \
-            err,                                                                                        \
             PROCESSOR_ERR_INVALID_PC                                                                    \
         );                                                                                              \
                                                                                                         \
         CALLBACK_VERIFY_OK_OR_RETURN_ERR(                                                               \
-            proc,                                                                                       \
             (size_t) a < proc->cmdbuf_size,                                                             \
-            err,                                                                                        \
             PROCESSOR_ERR_INVALID_PC                                                                    \
         );                                                                                              \
                                                                                                         \
         stack_data_t lhs = 0, rhs = 0;                                                                  \
                                                                                                         \
         stk_err = stack_pop(&proc->stack, &rhs);                                                        \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                       \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR;                                                            \
                                                                                                         \
         stk_err = stack_pop(&proc->stack, &lhs);                                                        \
-        CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;                                       \
+        CALLBACK_VERIFY_STACK_OR_RETURN_ERR;                                                            \
                                                                                                         \
         if(lhs sign rhs)                                                                                \
             proc->pc = (size_t) a;                                                                      \
@@ -603,7 +594,7 @@ extern cmd_callback_err_t cmd_call(processor_t* proc, command_data_t a, ATTR_UNU
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     stack_err_t stk_err = stack_push(&proc->stack, (command_data_t) proc->pc);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     proc->pc = (size_t) a;
 
@@ -618,7 +609,7 @@ extern cmd_callback_err_t cmd_ret(processor_t* proc, ATTR_UNUSED command_data_t 
 
     stack_data_t stkdata = 0;
     stack_err_t stk_err = stack_pop(&proc->stack, &stkdata);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     proc->pc = (size_t) stkdata;
 
@@ -632,25 +623,21 @@ extern cmd_callback_err_t cmd_pushm(processor_t* proc, command_data_t a, ATTR_UN
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
-        proc, 
         (unsigned) a < SIZEOF(proc_regs), 
-        err, 
         PROCESSOR_ERR_REG_UNKNOWN
     );
 
     command_data_t ram_addr = proc->regfile[a];
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
-        proc, 
         (unsigned) ram_addr < PROCESSOR_RAM_SIZE, 
-        err, 
         PROCESSOR_ERR_RAM_OVERFLOW
     );
 
     command_data_t ramdata = proc->ram[ram_addr];
 
     stack_err_t stk_err = stack_push(&proc->stack, ramdata);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -662,23 +649,19 @@ extern cmd_callback_err_t cmd_popm(processor_t* proc, command_data_t a, ATTR_UNU
     processor_err_t err = PROCESSOR_ERR_NONE;
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
-        proc, 
         (unsigned) a < SIZEOF(proc_regs), 
-        err, 
         PROCESSOR_ERR_REG_UNKNOWN
     );
 
     command_data_t ram_addr = proc->regfile[a];
 
     CALLBACK_VERIFY_OK_OR_RETURN_ERR(
-        proc, 
         (unsigned) ram_addr < PROCESSOR_RAM_SIZE, 
-        err, 
         PROCESSOR_ERR_RAM_OVERFLOW
     );
 
     stack_err_t stk_err = stack_pop(&proc->stack, &proc->ram[ram_addr]);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -694,10 +677,10 @@ extern cmd_callback_err_t cmd_in(processor_t* proc, ATTR_UNUSED command_data_t a
     utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "IN: ");
 
     int rd = scanf("%d", &val);
-    CALLBACK_VERIFY_OK_OR_RETURN_ERR(proc, rd == 1, err, PROCESSOR_ERR_READ_ERR);
+    CALLBACK_VERIFY_OK_OR_RETURN_ERR(rd == 1, PROCESSOR_ERR_READ_ERR);
 
     stk_err = stack_push(&proc->stack, val);
-    CALLBACK_VERIFY_STACK_OR_RETURN_ERR(proc, stk_err, err);;
+    CALLBACK_VERIFY_STACK_OR_RETURN_ERR;
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
@@ -737,3 +720,6 @@ extern cmd_callback_err_t cmd_draw(processor_t* proc, ATTR_UNUSED command_data_t
 
     return { CMD_CALLBACK_CONTINUE, err };
 }
+
+#undef CALLBACK_VERIFY_OK_OR_RETURN_ERR
+#undef CALLBACK_VERIFY_STACK_OR_RETURN_ERR
