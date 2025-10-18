@@ -215,49 +215,6 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
 
     command_data_t cmdarg = 0;
     int bytes_rd = 0;
-    for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
-
-        char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
-
-        if(cmd->cmd_type == COMMAND_TYPE_REGISTER && arg_i == 0) {
-            if(sscanf(str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
-                assembler_dump_syntax_err(asmblr, "expected register name");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-
-            const proc_reg_t* reg = _assembler_match_reg(cmdstr);
-            if(!reg) {
-                assembler_dump_syntax_err(asmblr, "unknown register name");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-                
-            cmdarg = reg->num;
-        }
-
-        else if(cmd->cmd_type == COMMAND_TYPE_JUMP || cmd->cmd_type == COMMAND_TYPE_CALL) {
-
-            char* lbl_start_ch = strchr(str_ptr, ':');
-
-            if(lbl_start_ch) { 
-                if(sscanf(++lbl_start_ch, "%s%n", lblstr, &bytes_rd) != 1) {
-                    assembler_dump_syntax_err(asmblr, "expected label as command argument");
-                    return ASSEMBLER_ERR_SYNTAX;
-                }
-                
-                assembler_lbl_t* lbl = _assembler_find_lbl(asmblr, lblstr);
-                if(lbl != NULL)
-                    cmdarg = lbl->addr;
-            }
-            else {
-                if(sscanf(str_ptr, "%d%n", &cmdarg, &bytes_rd) != 1) {
-                    assembler_dump_syntax_err(asmblr, "");
-                    return ASSEMBLER_ERR_SYNTAX;
-                }
-            }
-        }
-
-        else if(cmd->cmd_type == COMMAND_TYPE_RAM) {
-            char* addr_start_ch = strchr(str_ptr, '[');
 
 #define SYNTAX_VERIFIED(func) \
     if(func(cmd, &cmdarg, &bytes_rd, asmblr) != ASSEMBLER_ERR_NONE) \
@@ -585,12 +542,12 @@ static void _assembler_dump_line(assembler_t* asmblr, size_t bytes_assembled)
         for(size_t bufi = asmblr->cmdbuf_ind - bytes_assembled; bufi < asmblr->cmdbuf_ind; ++bufi)
             hexbuf_ptr += sprintf(hexbuf_ptr, "%08x ", (unsigned) asmblr->cmdbuf[bufi]);
 
-        utils_colored_fprintf(stdout, ANSI_COLOR_BLUE, "%20s", hexbuf);
+        utils_colored_fprintf(stdout, ANSI_COLOR_GREEN, "%20s", hexbuf);
     }
     else {
-        utils_colored_fprintf(stdout, ANSI_COLOR_BLUE, "  [label]           ");
+        utils_colored_fprintf(stdout, ANSI_COLOR_GREEN, "  [label]           ");
     }
 
 
-    utils_colored_fprintf(stdout, ANSI_COLOR_YELLOW, "%s\n", asmblr->line_ptr->str);
+    utils_colored_fprintf(stdout, ANSI_COLOR_MAGENTA, "%s\n", asmblr->line_ptr->str);
 }
