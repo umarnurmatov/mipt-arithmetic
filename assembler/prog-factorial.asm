@@ -1,4 +1,4 @@
-PUSH  3
+IN
 POPR  A0
 CALL  :factorial
 PUSHR A1
