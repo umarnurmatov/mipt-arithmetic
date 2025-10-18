@@ -2,7 +2,7 @@
 BUILD_DIR    := build
 SRC_DIR      := src
 TEST_DIR     := test
-INCLUDE_DIRS := include /home/n1njaeng1neer/source/arithmetic/common /home/n1njaeng1neer/source/arithmetic/processor/include
+INCLUDE_DIRS := include ../common ../processor/include
 LOG_DIR      := log
 EXECUTABLE   := assembler.out
 
@@ -11,8 +11,8 @@ OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(SOURCES)))
 DEPS := $(patsubst %.o,%.d,$(OBJS))
 
 # LIBRARIES
-LIBCUTILS_INCLUDE_PATH := /home/n1njaeng1neer/source/cutils/include
-LIBCUTILS              := /home/n1njaeng1neer/source/cutils/build/src/libcutils.a
+LIBCUTILS_INCLUDE_PATH := ../../cutils/include
+LIBCUTILS              := ../../cutils/build/src/libcutils.a
 
 # COMPILER CONFIG
 CC := g++
@@ -29,23 +29,20 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(BUILD_DIR)
 	@$(CC) $(CPPFLAGS) -c $< -o $@
 
-.PHONY: run
-run: FLAGS = --in=prog.asm --out=prog.o
-run: $(BUILD_DIR)/$(EXECUTABLE)
+.PHONY: circle
+circle: FLAGS = --in=prog-ram.asm --out=prog.o --listing
+circle: $(BUILD_DIR)/$(EXECUTABLE)
 	@./$(BUILD_DIR)/$(EXECUTABLE) $(FLAGS)
 
--include $(TEST_DIR)/test_sources.make
-TEST_EXECS := $(patsubst %.c,$(BUILD_DIR)/%.test,$(TEST_SOURCES))
+.PHONY: fibonacci
+fibonacci: FLAGS = --in=prog-fibonacci.asm --out=prog.o --listing
+fibonacci: $(BUILD_DIR)/$(EXECUTABLE)
+	@./$(BUILD_DIR)/$(EXECUTABLE) $(FLAGS)
 
-# TESTS
-prefix := "\#\#\#\#\#\# [TEST]"
-test: $(TEST_EXECS)
-	@$(foreach exec,$(TEST_EXECS),echo "$(prefix) Running $(notdir $(exec))..."; ./$(exec); echo -e "$(prefix) Finished $(notdir $(exec))\n";)
-
-$(BUILD_DIR)/%.test: $(TEST_DIR)/%.c $(OBJS)
-	@echo -n Building test $@...
-	@$(CC) $(CPPFLAGS) $(OBJS) -o $@ $<
-	@echo done
+.PHONY: 
+factorial: FLAGS = --in=prog-factorial.asm --out=prog.o --listing
+factorial: $(BUILD_DIR)/$(EXECUTABLE)
+	@./$(BUILD_DIR)/$(EXECUTABLE) $(FLAGS)
 
 .PHONY: clean
 clean:

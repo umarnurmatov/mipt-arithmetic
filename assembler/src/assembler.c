@@ -2,18 +2,20 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "assertutils.h"
+#include "colorutils.h"
 #include "commands.h"
 #include "fileline_arr.h"
 #include "logutils.h"
 #include "memutils.h"
 
-#define ASSEMBLER_ASSERT_OK(asmblr)   \
-    utils_assert(asmblr);             \
-    utils_assert(asmblr->cmdbuf);     \
-    utils_assert(asmblr->cmdbuf_ptr); \
-    utils_assert(asmblr->lblbuf);     \
+#define ASSEMBLER_ASSERT_OK(asmblr)                         \
+    utils_assert(asmblr);                                   \
+    utils_assert(asmblr->cmdbuf);                           \
+    utils_assert(asmblr->cmdbuf_ind < asmblr->cmdbuf_size); \
+    utils_assert(asmblr->lblbuf.buf);                       \
 
 #define ASSEMBLER_VERIFY_OR_RETURN(expr, err)                   \
 if(!(expr)) {                                                   \
@@ -23,7 +25,8 @@ if(!(expr)) {                                                   \
 
 static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 static const size_t METAINFO_LENGTH = 2;
-static const size_t MAX_LBL_CODE    = 10;
+static const size_t LBL_MAX_LENGTH = 20;
+static const size_t LBLBUF_INIT_SIZE = 10;
 
 static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr);
 
@@ -36,7 +39,20 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
 static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_t* asmblr);
 static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr);
 
-static assembler_err_t _assembler_assemble_once(assembler_t* asmblr);
+static assembler_err_t _assembler_parse_cmd_reg_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+static assembler_err_t _assembler_parse_cmd_call_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+static assembler_err_t _assembler_parse_cmd_ram_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+static assembler_err_t _assembler_parse_cmd_othr_arg(ATTR_UNUSED const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+
+static assembler_err_t _assembler_add_lbl(assembler_t* asmblr, assembler_lbl_t* lbl);
+static assembler_lbl_t* _assembler_find_lbl(assembler_t* asmblr, char* lblstr);
+
+static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t ncapacity);
+static void _assembler_free_lblbuf(assembler_t* asmblr);
+
+static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_listing);
+
+static void _assembler_dump_line(assembler_t* asmblr, size_t bytes_assembled);
 
 assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
 {
@@ -52,35 +68,30 @@ assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
 
     asmblr->cmdbuf      = cmdbuf_tmp;
     asmblr->cmdbuf_size = cmdbuf_tmp_size;
-    asmblr->cmdbuf_ptr  = cmdbuf_tmp;
-
-    size_t lblbuf_tmp_size = MAX_LBL_CODE + 1;
-    command_data_t* lblbuf_tmp = (command_data_t*)calloc(lblbuf_tmp_size, sizeof(asmblr->lblbuf[0]));
-
-    ASSEMBLER_VERIFY_OR_RETURN(cmdbuf_tmp, ASSEMBLER_ERR_ALLOC_FAIL);
-
-    memset(lblbuf_tmp, -1, lblbuf_tmp_size * sizeof(lblbuf_tmp[0]));
-
-    asmblr->lblbuf      = lblbuf_tmp;
-    asmblr->lblbuf_size = lblbuf_tmp_size;
+    asmblr->cmdbuf_ind  = 0;
+    
+    ASSEMBLER_VERIFY_OR_RETURN(
+        _assembler_realloc_lblbuf(asmblr, LBLBUF_INIT_SIZE) == ASSEMBLER_ERR_NONE, 
+        ASSEMBLER_ERR_ALLOC_FAIL
+    );
 
     asmblr->line_ptr = NULL;
-    asmblr->str_ptr  = NULL;
+    asmblr->str_ind  = 0;
 
     return ASSEMBLER_ERR_NONE;
 }
 
-assembler_err_t assembler_assemble(assembler_t* asmblr)
+assembler_err_t assembler_assemble(assembler_t* asmblr, int dump_listing)
 {
     assembler_err_t err = ASSEMBLER_ERR_NONE;
 
-    err = _assembler_assemble_once(asmblr);
+    err = _assembler_assemble_once(asmblr, 0);
     if(err != ASSEMBLER_ERR_NONE)
         return err;
 
-    asmblr->cmdbuf_ptr = asmblr->cmdbuf;
+    asmblr->cmdbuf_ind = 0;
 
-    err = _assembler_assemble_once(asmblr);
+    err = _assembler_assemble_once(asmblr, dump_listing);
     if(err != ASSEMBLER_ERR_NONE)
         return err;
 
@@ -92,7 +103,7 @@ assembler_err_t assembler_write_to_file(FILE* file, assembler_t* asmblr)
     utils_assert(file);
     utils_assert(asmblr);
 
-    size_t bytecode_s = (size_t)(asmblr->cmdbuf_ptr - asmblr->cmdbuf);
+    size_t bytecode_s = asmblr->cmdbuf_ind;
     size_t bytes_wr = fwrite(asmblr->cmdbuf, sizeof(asmblr->cmdbuf[0]), bytecode_s, file);
     if(bytes_wr < bytecode_s)
         return ASSEMBLER_ERR_WRITE;
@@ -124,7 +135,7 @@ void assembler_dtor(assembler_t* asmblr)
 
     fileline_arr_free(&asmblr->filearr);
     NFREE(asmblr->cmdbuf);
-    NFREE(asmblr->lblbuf);
+    _assembler_free_lblbuf(asmblr);
 }
 
 void assembler_dump_syntax_err(assembler_t* asmblr, const char* msg)
@@ -160,8 +171,8 @@ static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
 
-    *(asmblr->cmdbuf_ptr++) = SIGNATURE;
-    *(asmblr->cmdbuf_ptr++) = BYTECODE_VERSION;
+    asmblr->cmdbuf[asmblr->cmdbuf_ind++] = SIGNATURE;
+    asmblr->cmdbuf[asmblr->cmdbuf_ind++] = BYTECODE_VERSION;
 
     return ASSEMBLER_ERR_NONE;
 }
@@ -169,12 +180,13 @@ static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr)
 static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
     static char cmdstr[MAX_CMD_LENGTH] = "";
 
     int bytes_rd = 0;
-    if(sscanf(asmblr->str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+    if(sscanf(str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
         assembler_dump_syntax_err(asmblr, "expected command");
         return ASSEMBLER_ERR_SYNTAX;
     }
@@ -186,104 +198,281 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
         return ASSEMBLER_ERR_SYNTAX;
     }
 
-    *(asmblr->cmdbuf_ptr++) = cmd_tmp->code;
+    asmblr->cmdbuf[asmblr->cmdbuf_ind++] = cmd_tmp->code;
 
     *cmd = cmd_tmp;
 
-    asmblr->str_ptr += bytes_rd;
+    asmblr->str_ind += (size_t) bytes_rd;
 
     return ASSEMBLER_ERR_NONE;
 }
+
 
 static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
     command_data_t cmdarg = 0;
-
-    static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
-    
     int bytes_rd = 0;
+
+#define SYNTAX_VERIFIED(func) \
+    if(func(cmd, &cmdarg, &bytes_rd, asmblr) != ASSEMBLER_ERR_NONE) \
+        return ASSEMBLER_ERR_SYNTAX;
+
     for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
 
-        if(cmd->cmd_type == COMMAND_TYPE_REGISTER && arg_i == 0) {
-            if(sscanf(asmblr->str_ptr, "%s%n", cmdstr, &bytes_rd) != 1) {
-                assembler_dump_syntax_err(asmblr, "expected register name");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-
-            const proc_reg_t* reg = _assembler_match_reg(cmdstr);
-            if(!reg) {
-                assembler_dump_syntax_err(asmblr, "unknown register name");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-                
-            cmdarg = reg->num;
+        switch(cmd->cmd_type) {
+            case COMMAND_TYPE_REGISTER:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_reg_arg);
+                break;
+            case COMMAND_TYPE_CALL:
+            case COMMAND_TYPE_JUMP:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_call_arg);
+                break;
+            case COMMAND_TYPE_RAM:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_ram_arg);
+                break;
+            case COMMAND_TYPE_ARITHMETIC_BINARY:
+            case COMMAND_TYPE_ARITHMETIC_UNARY:
+            case COMMAND_TYPE_CONTROL:
+            case COMMAND_TYPE_STACK:
+            case COMMAND_TYPE_RET:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_othr_arg);
+                break;
+            default:
+                break;
         }
 
-        else if(cmd->cmd_type == COMMAND_TYPE_JUMP && arg_i == 0) {
-            command_data_t lblcode = 0;
-            if(sscanf(asmblr->str_ptr, "%d%n", &lblcode, &bytes_rd) != 1) {
-                assembler_dump_syntax_err(asmblr, "expected label as jmp command argument");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-            if((unsigned) lblcode >= MAX_LBL_CODE) {
-                assembler_dump_syntax_err(asmblr, "label out of bound");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-            if(asmblr->lblbuf[lblcode] != -1)
-                cmdarg = asmblr->lblbuf[lblcode];
-        }
+        asmblr->cmdbuf[asmblr->cmdbuf_ind++] = cmdarg;
 
-        else {
-            if(sscanf(asmblr->str_ptr, "%d%n", &cmdarg, &bytes_rd) != 1) {
-                assembler_dump_syntax_err(asmblr, "expected argument");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-        }
-
-        *(asmblr->cmdbuf_ptr++) = cmdarg;
-
-        asmblr->str_ptr += bytes_rd;
+        asmblr->str_ind += (size_t) bytes_rd;
     } 
+
+#undef SYNTAX_VERIFIED
 
     return ASSEMBLER_ERR_NONE;
 }
 
+
+
 static assembler_expr_t _assembler_get_expr_type(assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
-    char lbl = 0;
-    if(sscanf(asmblr->str_ptr, "%c", &lbl) != 1) {}
-
-    if(lbl == ':') 
-        return ASSEMBLER_EXPR_LBL;
-    else
-        return ASSEMBLER_EXPR_CMD;
+    return asmblr->line_ptr->str[0] == ':' 
+            ? ASSEMBLER_EXPR_LBL
+            : ASSEMBLER_EXPR_CMD;
 }
 
 static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
-    utils_assert(asmblr->str_ptr);
+    utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
-    int lblcode = 0;
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind + 1]; 
 
-    if(sscanf(asmblr->str_ptr, "%*c%d", &lblcode) != 1) {
-        assembler_dump_syntax_err(asmblr, "expected label");
-        return ASSEMBLER_ERR_SYNTAX;
+    char* str_buf = (char*)calloc(LBL_MAX_LENGTH, sizeof str_buf[0]);
+
+    assembler_err_t err = ASSEMBLER_ERR_NONE;
+
+    size_t stri = 0;
+    for(; stri < LBL_MAX_LENGTH; ++stri) {
+        if(isspace(str_ptr[stri]) || str_ptr[stri] == '\0') break;
+
+        else if(!isgraph(str_ptr[stri])) {
+            assembler_dump_syntax_err(asmblr, "lbl must be only of alphanumeric chars");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+
+        str_buf[stri] = str_ptr[stri];
     }
 
-    asmblr->lblbuf[lblcode] = (command_data_t) (asmblr->cmdbuf_ptr - asmblr->cmdbuf);
+    assembler_lbl_t lbl = {
+        .lblstr = str_buf,
+        .lblstr_len = stri,
+        .addr = (command_data_t) asmblr->cmdbuf_ind,
+    };
+
+    if((err = _assembler_add_lbl(asmblr, &lbl)) != ASSEMBLER_ERR_NONE) {
+        NFREE(str_buf);
+        return err;
+    }
 
     return ASSEMBLER_ERR_NONE;
 
 }
 
-static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
+static assembler_err_t _assembler_parse_cmd_reg_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    utils_assert(cmd->cmd_type == COMMAND_TYPE_REGISTER);
+
+    static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+
+    if(cmd->cmd_type == COMMAND_TYPE_REGISTER) {
+        if(sscanf(str_ptr, "%s%n", cmdstr, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "expected register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+
+        const proc_reg_t* reg = _assembler_match_reg(cmdstr);
+        if(!reg) {
+            assembler_dump_syntax_err(asmblr, "unknown register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+            
+        *cmdarg = reg->num;
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_parse_cmd_call_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    utils_assert(
+        cmd->cmd_type == COMMAND_TYPE_JUMP || 
+        cmd->cmd_type == COMMAND_TYPE_CALL
+    );
+
+    static char lblstr[LBL_MAX_LENGTH + 1] = "";
+
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+    char* lbl_start_ch = strchr(str_ptr, ':');
+
+    if(lbl_start_ch) { 
+        if(sscanf(++lbl_start_ch, "%s%n", lblstr, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "expected label as command argument");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+        
+        assembler_lbl_t* lbl = _assembler_find_lbl(asmblr, lblstr);
+
+        if(lbl != NULL)
+            *cmdarg = lbl->addr;
+    }
+    else {
+        if(sscanf(str_ptr, "%d%n", cmdarg, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_parse_cmd_ram_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    utils_assert(cmd->cmd_type == COMMAND_TYPE_RAM);
+
+    static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+
+    char* addr_start_ch = strchr(str_ptr, '[');
+
+    if(addr_start_ch) { 
+
+        if(sscanf(++addr_start_ch, "%[^]]%n", cmdstr, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "expected register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+
+        const proc_reg_t* reg = _assembler_match_reg(cmdstr);
+        if(!reg) {
+            assembler_dump_syntax_err(asmblr, "unknown register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+            
+        *cmdarg = reg->num;
+    }
+    else {
+        assembler_dump_syntax_err(asmblr, "expected [<reg>]");
+        return ASSEMBLER_ERR_SYNTAX;
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_parse_cmd_othr_arg(ATTR_UNUSED const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+
+    if(sscanf(str_ptr, "%d%n", cmdarg, bytes_rd) != 1) {
+        assembler_dump_syntax_err(asmblr, "expected argument");
+        return ASSEMBLER_ERR_SYNTAX;
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_add_lbl(assembler_t* asmblr, assembler_lbl_t* lbl)
+{
+    if(asmblr->lblbuf.size > asmblr->lblbuf.capacity / 2) {
+        ASSEMBLER_VERIFY_OR_RETURN(
+            _assembler_realloc_lblbuf(asmblr, asmblr->lblbuf.capacity * 2) == ASSEMBLER_ERR_NONE,
+            ASSEMBLER_ERR_ALLOC_FAIL
+        );
+    }
+
+    asmblr->lblbuf.buf[asmblr->lblbuf.size++] = *lbl;
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_lbl_t* _assembler_find_lbl(assembler_t* asmblr, char* lblstr)
+{
+    for(size_t bufi = 0; bufi < asmblr->lblbuf.size; ++bufi) 
+        if(strncmp(lblstr, asmblr->lblbuf.buf[bufi].lblstr, LBL_MAX_LENGTH) == 0)
+                return &asmblr->lblbuf.buf[bufi];
+    return NULL;
+}
+
+static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t ncapacity)
+{
+    utils_assert(asmblr); 
+
+    if(!asmblr->lblbuf.buf) {
+        asmblr->lblbuf.capacity = 0;
+        asmblr->lblbuf.size     = 0;
+    }
+
+    assembler_lbl_t* lblbuf_tmp = 
+        (assembler_lbl_t*)realloc(asmblr->lblbuf.buf, ncapacity * sizeof(asmblr->lblbuf.buf[0]));
+
+    if(lblbuf_tmp == NULL)
+        return ASSEMBLER_ERR_ALLOC_FAIL;
+
+    asmblr->lblbuf.buf      = lblbuf_tmp;
+    asmblr->lblbuf.capacity = ncapacity;
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static void _assembler_free_lblbuf(assembler_t* asmblr)
+{
+    for(size_t bufi = 0; bufi < asmblr->lblbuf.size; ++bufi)
+        free(asmblr->lblbuf.buf[bufi].lblstr);
+    NFREE(asmblr->lblbuf.buf);
+}
+
+static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_listing)
 {
     ASSEMBLER_ASSERT_OK(asmblr)
 
@@ -298,9 +487,11 @@ static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
 
         ASSEMBLER_VERIFY_OR_RETURN(asmblr->line_ptr, ASSEMBLER_ERR_PARSE_FAIL); 
 
-        asmblr->str_ptr = asmblr->line_ptr->str;
+        asmblr->str_ind = 0;
 
         assembler_expr_t expr_type = _assembler_get_expr_type(asmblr);
+
+        size_t cmdbuf_ind_prev = asmblr->cmdbuf_ind;
 
         switch(expr_type) {
             case ASSEMBLER_EXPR_LBL:
@@ -308,20 +499,55 @@ static assembler_err_t _assembler_assemble_once(assembler_t* asmblr)
                 err = _assembler_parse_lbl_arg(asmblr);
                 ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
 
+                if(dump_listing)
+                    _assembler_dump_line(asmblr, 0);
+
                 break;
             case ASSEMBLER_EXPR_CMD:
 
                 err = _assembler_parse_cmd(&cmd, asmblr);
                 ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                
+                if(cmd->arg_cnt != 0) {
+                    err = _assembler_parse_cmd_arg(cmd, asmblr);
+                    ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                }
 
-                err = _assembler_parse_cmd_arg(cmd, asmblr);
-                ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                if(dump_listing)
+                    _assembler_dump_line(asmblr, asmblr->cmdbuf_ind - cmdbuf_ind_prev);
 
                 break;
             default:
                 break;
         }
+
     }
     
     return ASSEMBLER_ERR_NONE;
+}
+
+static void _assembler_dump_line(assembler_t* asmblr, size_t bytes_assembled)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+
+    static char hexbuf[(sizeof(command_data_t) * 8 + 1) * (MAX_CMD_ARG_CNT + 1)];
+    char* hexbuf_ptr = hexbuf;
+    
+    if(bytes_assembled > 0)
+        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "[%08zx] ", asmblr->cmdbuf_ind - bytes_assembled);
+    else
+        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "[xxxxxxxx] ");
+
+    if(bytes_assembled > 0) {
+        for(size_t bufi = asmblr->cmdbuf_ind - bytes_assembled; bufi < asmblr->cmdbuf_ind; ++bufi)
+            hexbuf_ptr += sprintf(hexbuf_ptr, "%08x ", (unsigned) asmblr->cmdbuf[bufi]);
+
+        utils_colored_fprintf(stdout, ANSI_COLOR_GREEN, "%20s", hexbuf);
+    }
+    else {
+        utils_colored_fprintf(stdout, ANSI_COLOR_GREEN, "  [label]           ");
+    }
+
+
+    utils_colored_fprintf(stdout, ANSI_COLOR_MAGENTA, "%s\n", asmblr->line_ptr->str);
 }

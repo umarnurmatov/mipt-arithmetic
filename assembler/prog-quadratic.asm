@@ -1,0 +1,76 @@
+IN
+POPR  S0
+IN
+POPR  S1
+IN
+PUSHR S0
+PUSH  0
+JE    :linear
+POPR  S2
+PUSHR S1
+PUSHR S1
+MUL
+PUSH  4
+PUSHR S0
+PUSHR S2
+MUL
+MUL
+SUB
+POPR  S3
+PUSHR S3
+PUSH  0
+JB    :discriminant_neg 
+PUSHR S3
+PUSH  0
+JE    :discriminant_zero
+PUSHR S3
+PUSH  0
+JA    :discriminant_pos
+
+:linear
+PUSH -1 
+OUT
+HLT
+
+:discriminant_neg
+PUSH 0
+OUT
+HLT
+
+:discriminant_zero
+PUSH  -1  
+PUSHR S1
+MUL
+PUSH  2
+PUSHR S0
+DIV
+OUT
+HLT
+
+:discriminant_pos
+PUSH 2
+OUT
+PUSHR S3
+SQR
+POPR  S3
+PUSH  -1
+PUSHR S1
+MUL
+POPR S1
+PUSH  2
+PUSHR S0
+MUL
+POPR  S0
+PUSHR S1
+PUSHR S3
+SUB
+PUSHR S0
+DIV
+OUT
+PUSHR S1
+PUSHR S3
+ADD
+PUSHR S0
+DIV
+OUT
+HLT

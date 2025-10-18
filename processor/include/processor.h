@@ -29,7 +29,13 @@ typedef enum processor_err_t
     PROCESSOR_ERR_CMD_UNKNOWN   = 1 << 5,
     PROCESSOR_ERR_METADATA      = 1 << 6,
     PROCESSOR_ERR_CMDBUF_NULL   = 1 << 7,
-    PROCESSOR_ERR_REGFILE_NULL  = 1 << 8
+    PROCESSOR_ERR_REGFILE_NULL  = 1 << 8,
+    PROCESSOR_ERR_REG_UNKNOWN   = 1 << 9,
+    PROCESSOR_ERR_ZERO_DIV      = 1 << 10,
+    PROCESSOR_ERR_DOMAIN_ERR    = 1 << 11,
+    PROCESSOR_ERR_INVALID_PC    = 1 << 12,
+    PROCESSOR_ERR_RAM_OVERFLOW  = 1 << 14,
+    PROCESSOR_ERR_RAM_NULL      = 1 << 13
 } processor_err_t;
 
 processor_err_t processor_ctor(processor_t* proc, FILE* file);
@@ -38,9 +44,11 @@ processor_err_t processor_run(processor_t* proc);
 
 void processor_dtor(processor_t* proc);
 
-void processor_set_err(processor_err_t err, processor_err_t err_new);
+void processor_set_err(processor_err_t* err, processor_err_t err_new);
 
 int processor_is_err(processor_err_t err, processor_err_t is_set);
+
+void processor_set_dump_file(processor_t* proc, FILE* stream);
 
 const char * processor_strerr(processor_err_t onehot);
 

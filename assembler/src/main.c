@@ -14,8 +14,9 @@
 
 static utils_long_opt_t long_opts[] = 
 {
-    { OPT_ARG_REQUIRED, "in", NULL, 0, 0 },
-    { OPT_ARG_REQUIRED, "out" , NULL, 0, 0 },
+    { OPT_ARG_REQUIRED, "in"      , NULL, 0, 0 },
+    { OPT_ARG_REQUIRED, "out"     , NULL, 0, 0 },
+    { OPT_ARG_NONE    , "listing" , NULL, 0, 0 },
 };
 
 int main(int argc, char* argv[])
@@ -25,35 +26,44 @@ int main(int argc, char* argv[])
     utils_long_opt_get(argc, argv, long_opts, SIZEOF(long_opts));
 
     if(!long_opts[0].is_set) {
-        UTILS_LOGE(LOG_CATEGORY_OPT, "specify input file", "");
+        UTILS_LOGE(LOG_CATEGORY_OPT, "specify input file");
         return EXIT_FAILURE;
     }
 
     if(!long_opts[1].is_set) {
-        UTILS_LOGE(LOG_CATEGORY_OPT, "specify output file", "");
+        UTILS_LOGE(LOG_CATEGORY_OPT, "specify output file");
         return EXIT_FAILURE;
     }
 
     assembler_t asmblr {
         .cmdbuf = NULL,
         .cmdbuf_size = 0,
-        .cmdbuf_ptr = NULL,
-        .lblbuf = NULL,
-        .lblbuf_size = 0,
+        .cmdbuf_ind = 0,
+        .lblbuf = {
+            .buf = NULL,
+            .size = 0,
+            .capacity = 0
+        },
         .FILELINE_ARR_INITLIST(filearr)
     };
 
     FILE* input_file = open_file(long_opts[0].arg, "r");
     if(input_file == NULL) {
-        UTILS_LOGE(LOG_CATEGORY_FILEOP, "could not open input file", "");
+        UTILS_LOGE(LOG_CATEGORY_FILEOP, "could not open input file");
         return EXIT_FAILURE;
     }
 
-    assembler_ctor(input_file, &asmblr);
+    assembler_err_t asm_err = ASSEMBLER_ERR_NONE;
+
+    asm_err = assembler_ctor(input_file, &asmblr);
+    if(asm_err != ASSEMBLER_ERR_NONE) {
+        fclose(input_file);
+        return EXIT_FAILURE;
+    }
 
     fclose(input_file);
-    
-    assembler_err_t asm_err = assembler_assemble(&asmblr);
+
+    asm_err = assembler_assemble(&asmblr, long_opts[2].is_set);
     if(asm_err != ASSEMBLER_ERR_NONE) {
         assembler_dtor(&asmblr);
         return EXIT_FAILURE;
