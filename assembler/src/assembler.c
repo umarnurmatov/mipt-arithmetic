@@ -23,10 +23,6 @@ if(!(expr)) {                                                   \
     return err;                                                 \
 }
 
-// FIXME
-#define ASSEMBLER_DUMP_SYNTAX_AND_RETURN(msg) \
-
-
 static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 static const size_t METAINFO_LENGTH = 2;
 static const size_t LBL_MAX_LENGTH = 20;
@@ -211,16 +207,13 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
     return ASSEMBLER_ERR_NONE;
 }
 
+
 static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
     utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
     command_data_t cmdarg = 0;
-
-    static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
-    static char lblstr[LBL_MAX_LENGTH + 1] = "";
-    
     int bytes_rd = 0;
     for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
 
@@ -266,32 +259,32 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
         else if(cmd->cmd_type == COMMAND_TYPE_RAM) {
             char* addr_start_ch = strchr(str_ptr, '[');
 
-            if(addr_start_ch) { 
+#define SYNTAX_VERIFIED(func) \
+    if(func(cmd, &cmdarg, &bytes_rd, asmblr) != ASSEMBLER_ERR_NONE) \
+        return ASSEMBLER_ERR_SYNTAX;
 
-                if(sscanf(++addr_start_ch, "%[^]]%n", cmdstr, &bytes_rd) != 1) {
-                    assembler_dump_syntax_err(asmblr, "expected register name");
-                    return ASSEMBLER_ERR_SYNTAX;
-                }
+    for(size_t arg_i = 0; arg_i < cmd->arg_cnt; ++arg_i) {
 
-                const proc_reg_t* reg = _assembler_match_reg(cmdstr);
-                if(!reg) {
-                    assembler_dump_syntax_err(asmblr, "unknown register name");
-                    return ASSEMBLER_ERR_SYNTAX;
-                }
-                    
-                cmdarg = reg->num;
-            }
-            else {
-                assembler_dump_syntax_err(asmblr, "expected [<reg>]");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
-        }
-
-        else {
-            if(sscanf(str_ptr, "%d%n", &cmdarg, &bytes_rd) != 1) {
-                assembler_dump_syntax_err(asmblr, "expected argument");
-                return ASSEMBLER_ERR_SYNTAX;
-            }
+        switch(cmd->cmd_type) {
+            case COMMAND_TYPE_REGISTER:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_reg_arg);
+                break;
+            case COMMAND_TYPE_CALL:
+            case COMMAND_TYPE_JUMP:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_call_arg);
+                break;
+            case COMMAND_TYPE_RAM:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_ram_arg);
+                break;
+            case COMMAND_TYPE_ARITHMETIC_BINARY:
+            case COMMAND_TYPE_ARITHMETIC_UNARY:
+            case COMMAND_TYPE_CONTROL:
+            case COMMAND_TYPE_STACK:
+            case COMMAND_TYPE_RET:
+                SYNTAX_VERIFIED(_assembler_parse_cmd_othr_arg);
+                break;
+            default:
+                break;
         }
 
         asmblr->cmdbuf[asmblr->cmdbuf_ind++] = cmdarg;
@@ -299,8 +292,12 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
         asmblr->str_ind += (size_t) bytes_rd;
     } 
 
+#undef SYNTAX_VERIFIED
+
     return ASSEMBLER_ERR_NONE;
 }
+
+
 
 static assembler_expr_t _assembler_get_expr_type(assembler_t* asmblr)
 {
