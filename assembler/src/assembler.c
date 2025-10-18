@@ -43,6 +43,11 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
 static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_t* asmblr);
 static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr);
 
+static assembler_err_t _assembler_parse_cmd_reg_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+static assembler_err_t _assembler_parse_cmd_call_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+static assembler_err_t _assembler_parse_cmd_ram_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+static assembler_err_t _assembler_parse_cmd_othr_arg(ATTR_UNUSED const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr);
+
 static assembler_err_t _assembler_add_lbl(assembler_t* asmblr, assembler_lbl_t* lbl);
 static assembler_lbl_t* _assembler_find_lbl(assembler_t* asmblr, char* lblstr);
 
@@ -344,6 +349,125 @@ static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
     return ASSEMBLER_ERR_NONE;
 
 }
+
+static assembler_err_t _assembler_parse_cmd_reg_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    utils_assert(cmd->cmd_type == COMMAND_TYPE_REGISTER);
+
+    static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+
+    if(cmd->cmd_type == COMMAND_TYPE_REGISTER) {
+        if(sscanf(str_ptr, "%s%n", cmdstr, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "expected register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+
+        const proc_reg_t* reg = _assembler_match_reg(cmdstr);
+        if(!reg) {
+            assembler_dump_syntax_err(asmblr, "unknown register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+            
+        *cmdarg = reg->num;
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_parse_cmd_call_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    utils_assert(
+        cmd->cmd_type == COMMAND_TYPE_JUMP || 
+        cmd->cmd_type == COMMAND_TYPE_CALL
+    );
+
+    static char lblstr[LBL_MAX_LENGTH + 1] = "";
+
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+    char* lbl_start_ch = strchr(str_ptr, ':');
+
+    if(lbl_start_ch) { 
+        if(sscanf(++lbl_start_ch, "%s%n", lblstr, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "expected label as command argument");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+        
+        assembler_lbl_t* lbl = _assembler_find_lbl(asmblr, lblstr);
+
+        if(lbl != NULL)
+            *cmdarg = lbl->addr;
+    }
+    else {
+        if(sscanf(str_ptr, "%d%n", cmdarg, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_parse_cmd_ram_arg(const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    utils_assert(cmd->cmd_type == COMMAND_TYPE_RAM);
+
+    static char cmdstr[MAX_REG_NAME_LEN + 1] = "";
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+
+    char* addr_start_ch = strchr(str_ptr, '[');
+
+    if(addr_start_ch) { 
+
+        if(sscanf(++addr_start_ch, "%[^]]%n", cmdstr, bytes_rd) != 1) {
+            assembler_dump_syntax_err(asmblr, "expected register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+
+        const proc_reg_t* reg = _assembler_match_reg(cmdstr);
+        if(!reg) {
+            assembler_dump_syntax_err(asmblr, "unknown register name");
+            return ASSEMBLER_ERR_SYNTAX;
+        }
+            
+        *cmdarg = reg->num;
+    }
+    else {
+        assembler_dump_syntax_err(asmblr, "expected [<reg>]");
+        return ASSEMBLER_ERR_SYNTAX;
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
+static assembler_err_t _assembler_parse_cmd_othr_arg(ATTR_UNUSED const command_t* cmd, command_data_t* cmdarg, int* bytes_rd, assembler_t* asmblr)
+{
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(cmdarg);
+    utils_assert(bytes_rd);
+
+    char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
+
+    if(sscanf(str_ptr, "%d%n", cmdarg, bytes_rd) != 1) {
+        assembler_dump_syntax_err(asmblr, "expected argument");
+        return ASSEMBLER_ERR_SYNTAX;
+    }
+
+    return ASSEMBLER_ERR_NONE;
+}
+
 static assembler_err_t _assembler_add_lbl(assembler_t* asmblr, assembler_lbl_t* lbl)
 {
     if(asmblr->lblbuf.size > asmblr->lblbuf.capacity / 2) {
