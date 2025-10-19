@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
     };
 
     if(processor_ctor(&processor, input_file) != PROCESSOR_ERR_NONE) {
+        processor_dtor(&processor);
         UTILS_LOGE(LOG_CATEGORY_PROCESSOR, "processor init error");
         return EXIT_FAILURE;
     }
@@ -62,6 +63,7 @@ int main(int argc, char* argv[])
     fclose(input_file);
 
     if(processor_run(&processor) != PROCESSOR_ERR_NONE) {
+        processor_dtor(&processor);
         UTILS_LOGE(LOG_CATEGORY_PROCESSOR, "processor runtime error");
         return EXIT_FAILURE;
     }
