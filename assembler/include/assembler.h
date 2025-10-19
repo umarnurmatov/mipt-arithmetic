@@ -2,6 +2,7 @@
 
 #include "commands.h"
 #include "fileline_arr.h"
+#include "hashutils.h"
 
 #define LOG_CATEGORY_ASM "ASSEMBLER"
 
@@ -13,7 +14,8 @@ typedef enum assembler_err_t
     ASSEMBLER_ERR_PARSE_FAIL,
     ASSEMBLER_ERR_ALLOC_FAIL,
     ASSEMBLER_ERR_WRITE,
-    ASSEMBLER_ERR_SYNTAX
+    ASSEMBLER_ERR_SYNTAX,
+    ASSEMBLER_ERR_HASH_COLLISION
 } assembler_err_t;
 
 typedef enum assembler_expr_t
@@ -28,6 +30,18 @@ typedef struct assembler_lbl_t
     size_t lblstr_len;
     command_data_t addr;
 } assembler_lbl_t;
+
+typedef struct assembler_cmd_tbl_t
+{
+   utils_hash_t     hash;  
+   const command_t* ptr;
+} assembler_cmd_tbl_t;
+
+typedef struct assembler_reg_tbl_t
+{
+   utils_hash_t      hash;  
+   const proc_reg_t* ptr;
+} assembler_reg_tbl_t;
 
 typedef struct assembler_lblbuf_t
 {
@@ -47,6 +61,12 @@ typedef struct assembler_t
     fileline_arr_t  filearr;
     fileline_t*     line_ptr;
     size_t          str_ind;
+
+    assembler_cmd_tbl_t* cmd_tbl;
+    size_t               cmd_tbl_size;
+
+    assembler_reg_tbl_t* reg_tbl;
+    size_t               reg_tbl_size;
 } assembler_t;
 
 assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr);

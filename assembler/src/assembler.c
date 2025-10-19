@@ -3,13 +3,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 #include "assertutils.h"
 #include "colorutils.h"
 #include "commands.h"
 #include "fileline_arr.h"
+#include "hashutils.h"
 #include "logutils.h"
 #include "memutils.h"
+#include "stack.h"
 
 #define ASSEMBLER_ASSERT_OK(asmblr)                         \
     utils_assert(asmblr);                                   \
@@ -23,15 +26,17 @@ if(!(expr)) {                                                   \
     return err;                                                 \
 }
 
-static const size_t MAX_CMD_LENGTH  = sizeof(command_data_t) * MAX_CMD_ARG_CNT;
 static const size_t METAINFO_LENGTH = 2;
 static const size_t LBL_MAX_LENGTH = 20;
 static const size_t LBLBUF_INIT_SIZE = 10;
 
 static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr);
 
-static const command_t*  _assembler_match_cmd(const char* name);
-static const proc_reg_t* _assembler_match_reg(char* regname);
+static assembler_err_t _assembler_alloc_cmd_tbl(assembler_t* asmblr);
+static assembler_err_t _assembler_alloc_reg_tbl(assembler_t* asmblr);
+
+static const command_t* _assembler_match_cmd(assembler_t* asmblr, const char* name);
+static const proc_reg_t* _assembler_match_reg(assembler_t* asmblr, const char* name);
 
 static assembler_expr_t _assembler_get_expr_type(assembler_t* asmblr);
 
@@ -69,11 +74,22 @@ assembler_err_t assembler_ctor(FILE* file, assembler_t* asmblr)
     asmblr->cmdbuf      = cmdbuf_tmp;
     asmblr->cmdbuf_size = cmdbuf_tmp_size;
     asmblr->cmdbuf_ind  = 0;
+
+    assembler_err_t err = ASSEMBLER_ERR_NONE;
+
+#define ASSEMBLER_VERIFY_INIT_OR_RETURN(func, ...)                            \
+    ASSEMBLER_VERIFY_OR_RETURN(                                               \
+        (err = func(asmblr __VA_OPT__(,) __VA_ARGS__)) == ASSEMBLER_ERR_NONE, \
+        err                                                                   \
+    )
+
+    ASSEMBLER_VERIFY_INIT_OR_RETURN(_assembler_realloc_lblbuf, LBLBUF_INIT_SIZE);
     
-    ASSEMBLER_VERIFY_OR_RETURN(
-        _assembler_realloc_lblbuf(asmblr, LBLBUF_INIT_SIZE) == ASSEMBLER_ERR_NONE, 
-        ASSEMBLER_ERR_ALLOC_FAIL
-    );
+    ASSEMBLER_VERIFY_INIT_OR_RETURN(_assembler_alloc_cmd_tbl);
+
+    ASSEMBLER_VERIFY_INIT_OR_RETURN(_assembler_alloc_reg_tbl);
+
+#undef ASSEMBLER_VERIFY_INIT_OR_RETURN
 
     asmblr->line_ptr = NULL;
     asmblr->str_ind  = 0;
@@ -124,6 +140,8 @@ const char* assembler_strerr(assembler_err_t err)
             return "write error";
         case ASSEMBLER_ERR_SYNTAX:
             return "syntax error";
+        case ASSEMBLER_ERR_HASH_COLLISION:
+            return "hash collision occured";
         default:
             return "unknown";
     }
@@ -134,8 +152,11 @@ void assembler_dtor(assembler_t* asmblr)
     utils_assert(asmblr);
 
     fileline_arr_free(&asmblr->filearr);
-    NFREE(asmblr->cmdbuf);
     _assembler_free_lblbuf(asmblr);
+
+    NFREE(asmblr->cmdbuf);
+    NFREE(asmblr->cmd_tbl);
+    NFREE(asmblr->reg_tbl);
 }
 
 void assembler_dump_syntax_err(assembler_t* asmblr, const char* msg)
@@ -146,26 +167,74 @@ void assembler_dump_syntax_err(assembler_t* asmblr, const char* msg)
     utils_colored_fprintf(stderr, ANSI_COLOR_RED, "line %lu: %s [%s]\n", asmblr->line_ptr->lnum + 1, asmblr->line_ptr->str, msg);
 }
 
-static const command_t* _assembler_match_cmd(const char* name)
-{
-    utils_assert(name);
+#define ASSEMBLER_ALLOC_TBL_(pref, arr)                                                     \
+    static assembler_err_t _assembler_alloc_##pref##_tbl(assembler_t* asmblr)               \
+    {                                                                                       \
+        size_t tbl_size_tmp = SIZEOF(arr);                                                  \
+        assembler_##pref##_tbl_t* tbl_tmp =                                                 \
+            (assembler_##pref##_tbl_t*)calloc(tbl_size_tmp, sizeof(asmblr->pref##_tbl[0])); \
+                                                                                            \
+        ASSEMBLER_VERIFY_OR_RETURN(tbl_tmp, ASSEMBLER_ERR_ALLOC_FAIL);                      \
+                                                                                            \
+        for(ssize_t cmdi = 0; (unsigned) cmdi < SIZEOF(arr); ++cmdi) {                      \
+            tbl_tmp[cmdi].ptr = &arr[cmdi];                                                 \
+            tbl_tmp[cmdi].hash =                                                            \
+                utils_djb2_hash(&arr[cmdi].name, SIZEOF(arr[cmdi].name));                   \
+                                                                                            \
+            if(cmdi < 1) continue;                                                          \
+                                                                                            \
+            ssize_t cmdj = cmdi - 1;                                                        \
+            assembler_##pref##_tbl_t key = tbl_tmp[cmdi];                                   \
+            while(key.hash < tbl_tmp[cmdj].hash) {                                          \
+                tbl_tmp[cmdj + 1] = tbl_tmp[cmdj];                                          \
+                                                                                            \
+                --cmdj;                                                                     \
+                if(cmdj < 0) break;                                                         \
+            }                                                                               \
+                                                                                            \
+            if(cmdj >= 0 && tbl_tmp[cmdj].hash == key.hash) {                               \
+                NFREE(tbl_tmp);                                                             \
+                return ASSEMBLER_ERR_HASH_COLLISION;                                        \
+            }                                                                               \
+            tbl_tmp[cmdj + 1] = key;                                                        \
+        }                                                                                   \
+                                                                                            \
+        asmblr->pref##_tbl      = tbl_tmp;                                                  \
+        asmblr->pref##_tbl_size = tbl_size_tmp;                                             \
+                                                                                            \
+        return ASSEMBLER_ERR_NONE;                                                          \
+    }                                                                                       \
 
-    for(size_t cmdi = 0; cmdi < SIZEOF(cmdarr); ++cmdi)
-        if(!strncmp(cmdarr[cmdi].name, name, MAX_CMD_LENGTH))
-            return &cmdarr[cmdi];
-    return NULL;
-}
+ASSEMBLER_ALLOC_TBL_(cmd, cmdarr);
+ASSEMBLER_ALLOC_TBL_(reg, proc_regs);
 
-static const proc_reg_t* _assembler_match_reg(char* regname)
-{
-    utils_assert(regname);
+#undef ASSEMBLER_ALLOC_TBL_ 
 
-    for(size_t regi = 0; regi < SIZEOF(proc_regs); ++regi) {
-        if(!strcmp(proc_regs[regi].name, regname))
-            return &proc_regs[regi];
-    }
-    return NULL;
-}
+#define ASSEMBLER_MATCH_(pref, type, arr)                                                   \
+    static const type* _assembler_match_##pref(assembler_t* asmblr, const char* name)       \
+    {                                                                                       \
+        utils_assert(name);                                                                 \
+                                                                                            \
+        utils_hash_t hash = utils_djb2_hash(name, SIZEOF(arr[0].name));                     \
+                                                                                            \
+        ssize_t l = 0, m = 0;                                                               \
+        ssize_t r = (ssize_t)asmblr->pref##_tbl_size - 1;                                   \
+        while(l <= r) {                                                                     \
+            m = l + (r - l) / 2;                                                            \
+            size_t pivot_hash = asmblr->pref##_tbl[m].hash;                                 \
+            if(pivot_hash < hash)                                                           \
+                l = m + 1;                                                                  \
+            else if(pivot_hash > hash)                                                      \
+                r = m - 1;                                                                  \
+            else                                                                            \
+                return asmblr->pref##_tbl[m].ptr;                                           \
+        }                                                                                   \
+                                                                                            \
+        return NULL;                                                                        \
+    }                                                                                       \
+
+ASSEMBLER_MATCH_(cmd, command_t, cmdarr);
+ASSEMBLER_MATCH_(reg, proc_reg_t, proc_regs);
 
 static assembler_err_t _assembler_write_metainfo(assembler_t* asmblr)
 {
@@ -182,7 +251,7 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
     ASSEMBLER_ASSERT_OK(asmblr);
     utils_assert(asmblr->str_ind < asmblr->line_ptr->len);
 
-    static char cmdstr[MAX_CMD_LENGTH] = "";
+    char cmdstr[MAX_CMD_NAME_LEN] = "";
 
     int bytes_rd = 0;
     char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
@@ -191,7 +260,7 @@ static assembler_err_t _assembler_parse_cmd(const command_t** cmd, assembler_t* 
         return ASSEMBLER_ERR_SYNTAX;
     }
 
-    const command_t* cmd_tmp = _assembler_match_cmd(cmdstr);
+    const command_t* cmd_tmp = _assembler_match_cmd(asmblr, cmdstr);
     
     if(cmd_tmp == NULL) {
         assembler_dump_syntax_err(asmblr, "unknown command");
@@ -321,7 +390,7 @@ static assembler_err_t _assembler_parse_cmd_reg_arg(const command_t* cmd, comman
             return ASSEMBLER_ERR_SYNTAX;
         }
 
-        const proc_reg_t* reg = _assembler_match_reg(cmdstr);
+        const proc_reg_t* reg = _assembler_match_reg(asmblr, cmdstr);
         if(!reg) {
             assembler_dump_syntax_err(asmblr, "unknown register name");
             return ASSEMBLER_ERR_SYNTAX;
@@ -390,7 +459,7 @@ static assembler_err_t _assembler_parse_cmd_ram_arg(const command_t* cmd, comman
             return ASSEMBLER_ERR_SYNTAX;
         }
 
-        const proc_reg_t* reg = _assembler_match_reg(cmdstr);
+        const proc_reg_t* reg = _assembler_match_reg(asmblr, cmdstr);
         if(!reg) {
             assembler_dump_syntax_err(asmblr, "unknown register name");
             return ASSEMBLER_ERR_SYNTAX;

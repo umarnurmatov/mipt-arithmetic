@@ -44,7 +44,11 @@ int main(int argc, char* argv[])
             .size = 0,
             .capacity = 0
         },
-        .FILELINE_ARR_INITLIST(filearr)
+        .FILELINE_ARR_INITLIST(filearr),
+        .cmd_tbl = NULL,
+        .cmd_tbl_size = 0,
+        .reg_tbl = NULL,
+        .reg_tbl_size = 0
     };
 
     FILE* input_file = open_file(long_opts[0].arg, "r");

@@ -9,6 +9,7 @@
 
 const size_t MAX_CMD_ARG_CNT  = 2;
 const size_t MAX_REG_NAME_LEN = 3;
+const size_t MAX_CMD_NAME_LEN = 6;
 
 typedef int32_t command_data_t;
 
@@ -46,7 +47,7 @@ typedef cmd_callback_err_t (*cmd_callback)(processor_t* proc, command_data_t, co
 
 typedef struct command_t
 {
-    const char*    name;
+    const char     name[MAX_CMD_NAME_LEN];
     command_data_t code;
     size_t         arg_cnt;
     command_type_t cmd_type;
@@ -55,7 +56,7 @@ typedef struct command_t
 
 typedef struct proc_reg_t
 {
-    const char*    name;
+    const char     name[MAX_REG_NAME_LEN];
     command_data_t num;
 } proc_reg_t;
 
@@ -106,22 +107,21 @@ const command_t cmdarr[] =
     { "MUL"  , 0x05, 0, COMMAND_TYPE_ARITHMETIC_BINARY, cmd_mul   },
     { "DIV"  , 0x06, 0, COMMAND_TYPE_ARITHMETIC_BINARY, cmd_div   },
     { "SQR"  , 0x07, 0, COMMAND_TYPE_ARITHMETIC_UNARY , cmd_sqr   },
-    { "SQR"  , 0x08, 0, COMMAND_TYPE_ARITHMETIC_UNARY , cmd_sqr   },
-    { "HLT"  , 0x09, 0, COMMAND_TYPE_CONTROL          , cmd_hlt   },
-    { "OUT"  , 0x0A, 0, COMMAND_TYPE_CONTROL          , cmd_out   },
-    { "JMP"  , 0x0B, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
-    { "JB"   , 0x0C, 1, COMMAND_TYPE_JUMP             , cmd_jb    },
-    { "JBE"  , 0x0D, 1, COMMAND_TYPE_JUMP             , cmd_jbe   },
-    { "JA"   , 0x0E, 1, COMMAND_TYPE_JUMP             , cmd_ja    },
-    { "JAE"  , 0x0F, 1, COMMAND_TYPE_JUMP             , cmd_jae   },
-    { "JE"   , 0x10, 1, COMMAND_TYPE_JUMP             , cmd_je    },
-    { "JNE"  , 0x11, 1, COMMAND_TYPE_JUMP             , cmd_jne   },
-    { "CALL" , 0x12, 1, COMMAND_TYPE_CALL             , cmd_call  },
-    { "RET"  , 0x13, 0, COMMAND_TYPE_RET              , cmd_ret   },
-    { "PUSHM", 0x14, 1, COMMAND_TYPE_RAM              , cmd_pushm },
-    { "POPM" , 0x15, 1, COMMAND_TYPE_RAM              , cmd_popm  },
-    { "IN"   , 0x16, 0, COMMAND_TYPE_CONTROL          , cmd_in    },
-    { "DRAW" , 0x17, 0, COMMAND_TYPE_CONTROL          , cmd_draw  }
+    { "HLT"  , 0x08, 0, COMMAND_TYPE_CONTROL          , cmd_hlt   },
+    { "OUT"  , 0x09, 0, COMMAND_TYPE_CONTROL          , cmd_out   },
+    { "JMP"  , 0x0A, 1, COMMAND_TYPE_JUMP             , cmd_jmp   },
+    { "JB"   , 0x0B, 1, COMMAND_TYPE_JUMP             , cmd_jb    },
+    { "JBE"  , 0x0C, 1, COMMAND_TYPE_JUMP             , cmd_jbe   },
+    { "JA"   , 0x0D, 1, COMMAND_TYPE_JUMP             , cmd_ja    },
+    { "JAE"  , 0x0E, 1, COMMAND_TYPE_JUMP             , cmd_jae   },
+    { "JE"   , 0x0F, 1, COMMAND_TYPE_JUMP             , cmd_je    },
+    { "JNE"  , 0x10, 1, COMMAND_TYPE_JUMP             , cmd_jne   },
+    { "CALL" , 0x11, 1, COMMAND_TYPE_CALL             , cmd_call  },
+    { "RET"  , 0x12, 0, COMMAND_TYPE_RET              , cmd_ret   },
+    { "PUSHM", 0x13, 1, COMMAND_TYPE_RAM              , cmd_pushm },
+    { "POPM" , 0x14, 1, COMMAND_TYPE_RAM              , cmd_popm  },
+    { "IN"   , 0x15, 0, COMMAND_TYPE_CONTROL          , cmd_in    },
+    { "DRAW" , 0x16, 0, COMMAND_TYPE_CONTROL          , cmd_draw  }
 };
 
 const proc_reg_t proc_regs[] = 
