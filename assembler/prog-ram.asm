@@ -48,6 +48,24 @@ DRAW
 HLT
 
 :draw
+CALL  :radius
+PUSHR A0
+PUSHR A1
+JA    :draw_ret
+
+PUSHR T1
+PUSHR S1
+MUL
+PUSHR T0
+ADD      # stk: y * width + x
+POPR  T3
+PUSH  35 # ascii '#'
+POPM  [T3]
+JMP   :draw_ret
+:draw_ret
+RET
+
+:radius
 PUSHR T0
 PUSHR S3
 SUB
@@ -65,21 +83,11 @@ PUSHR T4
 PUSHR T4
 MUL
 ADD
+POPR  A0
 PUSHR S0
 PUSHR S0
 MUL
 PUSH  1
 ADD   
-JA    :draw_ret
-
-PUSHR T1
-PUSHR S1
-MUL
-PUSHR T0
-ADD      # stk: y * width + x
-POPR  T3
-PUSH  35 # ascii '#'
-POPM  [T3]
-JMP   :draw_ret
-:draw_ret
+POPR  A1
 RET

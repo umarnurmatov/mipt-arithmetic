@@ -110,7 +110,7 @@ processor_err_t processor_run(processor_t *proc)
 
     for( ;; ) {
 
-        PROCESSOR_DUMP(proc->dump_stream, proc, err, NULL); 
+        // PROCESSOR_DUMP(proc->dump_stream, proc, err, NULL); 
 
         PROCESSOR_VERIFY_OK_OR_RETURN_ERR(
             proc->pc < proc->cmdbuf_size,
@@ -128,12 +128,11 @@ processor_err_t processor_run(processor_t *proc)
             NULL 
         );
         
-        if(cmdarr[cmdcode].arg_cnt == 2) {
+        if(cmdarr[cmdcode].arg_cnt >= 1)
             cmdarg_a = proc->cmdbuf[proc->pc++];
+
+        if(cmdarr[cmdcode].arg_cnt >= 2)
             cmdarg_b = proc->cmdbuf[proc->pc++];
-        }
-        else if(cmdarr[cmdcode].arg_cnt == 1)
-            cmdarg_a = proc->cmdbuf[proc->pc++];
 
         cmd_callback_err_t ret = 
             cmdarr[cmdcode].callback(proc, cmdarg_a, cmdarg_b);

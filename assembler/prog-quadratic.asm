@@ -3,10 +3,10 @@ POPR  S0
 IN
 POPR  S1
 IN
+POPR  S2
 PUSHR S0
 PUSH  0
 JE    :linear
-POPR  S2
 PUSHR S1
 PUSHR S1
 MUL
@@ -28,7 +28,25 @@ PUSH  0
 JA    :discriminant_pos
 
 :linear
-PUSH -1 
+PUSHR S1
+PUSH  0
+JE   :none
+PUSHR S2
+PUSH  0
+JE   :inf
+PUSHR S2
+PUSH  -1
+MUL
+PUSHR S1
+DIV
+OUT
+HLT
+:inf
+PUSH 8
+OUT  
+HLT
+:none
+PUSH -1
 OUT
 HLT
 

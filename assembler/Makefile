@@ -44,6 +44,11 @@ factorial: FLAGS = --in=prog-factorial.asm --out=prog.o --listing
 factorial: $(BUILD_DIR)/$(EXECUTABLE)
 	@./$(BUILD_DIR)/$(EXECUTABLE) $(FLAGS)
 
+.PHONY: 
+quadratic: FLAGS = --in=prog-quadratic.asm --out=prog.o --listing
+quadratic: $(BUILD_DIR)/$(EXECUTABLE)
+	@./$(BUILD_DIR)/$(EXECUTABLE) $(FLAGS)
+
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
