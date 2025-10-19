@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
 
     asm_err = assembler_ctor(input_file, &asmblr);
     if(asm_err != ASSEMBLER_ERR_NONE) {
+        assembler_dtor(&asmblr);
         fclose(input_file);
         return EXIT_FAILURE;
     }
