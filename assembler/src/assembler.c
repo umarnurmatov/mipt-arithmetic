@@ -500,16 +500,50 @@ static assembler_err_t _assembler_add_lbl(assembler_t* asmblr, assembler_lbl_t* 
         );
     }
 
+    lbl->hash = utils_djb2_hash(lbl->lblstr, (LBL_MAX_LENGTH + 1) * sizeof(lbl->lblstr[0]));
     asmblr->lblbuf.buf[asmblr->lblbuf.size++] = *lbl;
+
+    BEGIN {
+        if(asmblr->lblbuf.size < 2) GOTO_END;
+
+        ssize_t lbl_i = (ssize_t) asmblr->lblbuf.size - 2;
+        assembler_lbl_t key = asmblr->lblbuf.buf[asmblr->lblbuf.size - 1];
+        
+        while(key.hash < asmblr->lblbuf.buf[lbl_i].hash) {
+            asmblr->lblbuf.buf[lbl_i + 1] = asmblr->lblbuf.buf[lbl_i];
+            if(--lbl_i < 0) break;
+        }                                                                               
+
+        asmblr->lblbuf.buf[lbl_i + 1] = key;
+
+        // if(lbl_i >= 0 && asmblr->lblbuf.buf[lbl_i].hash == key.hash) 
+        //     return ASSEMBLER_ERR_HASH_COLLISION;
+
+    } END;
 
     return ASSEMBLER_ERR_NONE;
 }
 
 static assembler_lbl_t* _assembler_find_lbl(assembler_t* asmblr, char* lblstr)
 {
-    for(size_t bufi = 0; bufi < asmblr->lblbuf.size; ++bufi) 
-        if(strncmp(lblstr, asmblr->lblbuf.buf[bufi].lblstr, LBL_MAX_LENGTH) == 0)
-                return &asmblr->lblbuf.buf[bufi];
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(lblstr);
+
+    utils_hash_t hash = utils_djb2_hash(lblstr, LBL_MAX_LENGTH + 1);                     
+                                                                                        
+    ssize_t l = 0, m = 0;                                                               
+    ssize_t r = (ssize_t)asmblr->lblbuf.size - 1;                                   
+    while(l <= r) {                                                                     
+        m = l + (r - l) / 2;                                                            
+        size_t pivot_hash = asmblr->lblbuf.buf[m].hash;                                 
+        if(pivot_hash < hash)                                                           
+            l = m + 1;                                                                  
+        else if(pivot_hash > hash)                                                      
+            r = m - 1;                                                                  
+        else                                                                            
+            return &asmblr->lblbuf.buf[m];                                           
+    }                                                                                   
+
     return NULL;
 }
 

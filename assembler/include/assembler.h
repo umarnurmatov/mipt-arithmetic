@@ -29,6 +29,7 @@ typedef struct assembler_lbl_t
     char* lblstr;
     size_t lblstr_len;
     command_data_t addr;
+    utils_hash_t hash;
 } assembler_lbl_t;
 
 typedef struct assembler_cmd_tbl_t
