@@ -55,7 +55,7 @@ static assembler_lbl_t* _assembler_find_lbl(assembler_t* asmblr, char* lblstr);
 static assembler_err_t _assembler_realloc_lblbuf(assembler_t* asmblr, size_t ncapacity);
 static void _assembler_free_lblbuf(assembler_t* asmblr);
 
-static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_listing);
+static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int parse_lbls, int dump_listing);
 
 static void _assembler_dump_line(assembler_t* asmblr, size_t bytes_assembled);
 
@@ -101,15 +101,19 @@ assembler_err_t assembler_assemble(assembler_t* asmblr, int dump_listing)
 {
     assembler_err_t err = ASSEMBLER_ERR_NONE;
 
-    err = _assembler_assemble_once(asmblr, 0);
+#define PARSE_LABELS 1
+
+    err = _assembler_assemble_once(asmblr, PARSE_LABELS, 0);
     if(err != ASSEMBLER_ERR_NONE)
         return err;
 
     asmblr->cmdbuf_ind = 0;
 
-    err = _assembler_assemble_once(asmblr, dump_listing);
+    err = _assembler_assemble_once(asmblr, !PARSE_LABELS, dump_listing);
     if(err != ASSEMBLER_ERR_NONE)
         return err;
+
+#undef PARSE_LABELS
 
     return err;
 }
@@ -323,8 +327,6 @@ static assembler_err_t _assembler_parse_cmd_arg(const command_t* cmd, assembler_
     return ASSEMBLER_ERR_NONE;
 }
 
-
-
 static assembler_expr_t _assembler_get_expr_type(assembler_t* asmblr)
 {
     ASSEMBLER_ASSERT_OK(asmblr);
@@ -342,7 +344,7 @@ static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
 
     char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind + 1]; 
 
-    char* str_buf = (char*)calloc(LBL_MAX_LENGTH, sizeof str_buf[0]);
+    char* str_buf = (char*)calloc(LBL_MAX_LENGTH + 1, sizeof str_buf[0]);
 
     assembler_err_t err = ASSEMBLER_ERR_NONE;
 
@@ -359,15 +361,14 @@ static assembler_err_t _assembler_parse_lbl_arg(assembler_t* asmblr)
     }
 
     assembler_lbl_t lbl = {
-        .lblstr = str_buf,
+        .lblstr     = str_buf,
         .lblstr_len = stri,
-        .addr = (command_data_t) asmblr->cmdbuf_ind,
+        .addr       = (command_data_t) asmblr->cmdbuf_ind,
+        .hash       = 0
     };
 
-    if((err = _assembler_add_lbl(asmblr, &lbl)) != ASSEMBLER_ERR_NONE) {
-        NFREE(str_buf);
+    if((err = _assembler_add_lbl(asmblr, &lbl)) != ASSEMBLER_ERR_NONE)
         return err;
-    }
 
     return ASSEMBLER_ERR_NONE;
 
@@ -413,12 +414,12 @@ static assembler_err_t _assembler_parse_cmd_call_arg(const command_t* cmd, comma
         cmd->cmd_type == COMMAND_TYPE_CALL
     );
 
-    static char lblstr[LBL_MAX_LENGTH + 1] = "";
-
     char* str_ptr = &asmblr->line_ptr->str[asmblr->str_ind];
     char* lbl_start_ch = strchr(str_ptr, ':');
 
     if(lbl_start_ch) { 
+        char lblstr[LBL_MAX_LENGTH + 1] = "";
+
         if(sscanf(++lbl_start_ch, "%s%n", lblstr, bytes_rd) != 1) {
             assembler_dump_syntax_err(asmblr, "expected label as command argument");
             return ASSEMBLER_ERR_SYNTAX;
@@ -493,6 +494,9 @@ static assembler_err_t _assembler_parse_cmd_othr_arg(ATTR_UNUSED const command_t
 
 static assembler_err_t _assembler_add_lbl(assembler_t* asmblr, assembler_lbl_t* lbl)
 {
+    ASSEMBLER_ASSERT_OK(asmblr);
+    utils_assert(lbl);
+
     if(asmblr->lblbuf.size > asmblr->lblbuf.capacity / 2) {
         ASSEMBLER_VERIFY_OR_RETURN(
             _assembler_realloc_lblbuf(asmblr, asmblr->lblbuf.capacity * 2) == ASSEMBLER_ERR_NONE,
@@ -575,7 +579,7 @@ static void _assembler_free_lblbuf(assembler_t* asmblr)
     NFREE(asmblr->lblbuf.buf);
 }
 
-static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_listing)
+static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int parse_lbls, int dump_listing)
 {
     ASSEMBLER_ASSERT_OK(asmblr)
 
@@ -599,8 +603,10 @@ static assembler_err_t _assembler_assemble_once(assembler_t* asmblr, int dump_li
         switch(expr_type) {
             case ASSEMBLER_EXPR_LBL:
 
-                err = _assembler_parse_lbl_arg(asmblr);
-                ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                if(parse_lbls) {
+                    err = _assembler_parse_lbl_arg(asmblr);
+                    ASSEMBLER_VERIFY_OR_RETURN(err == ASSEMBLER_ERR_NONE, err); 
+                }
 
                 if(dump_listing)
                     _assembler_dump_line(asmblr, 0);
