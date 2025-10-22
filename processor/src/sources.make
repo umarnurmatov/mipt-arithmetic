@@ -1,1 +1,1 @@
-SOURCES = main.c processor.c stack.c
+SOURCES = main.c processor.c stack.c gui.c

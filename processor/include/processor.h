@@ -35,7 +35,8 @@ typedef enum processor_err_t
     PROCESSOR_ERR_DOMAIN_ERR    = 1 << 11,
     PROCESSOR_ERR_INVALID_PC    = 1 << 12,
     PROCESSOR_ERR_RAM_OVERFLOW  = 1 << 14,
-    PROCESSOR_ERR_RAM_NULL      = 1 << 13
+    PROCESSOR_ERR_RAM_NULL      = 1 << 13,
+    PROCESSOR_ERR_GUI           = 1 << 14
 } processor_err_t;
 
 processor_err_t processor_ctor(processor_t* proc, FILE* file);

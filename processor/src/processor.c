@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "assertutils.h"
 #include "stack.h"
+#include "gui.h"
 
 #ifdef _DEBUG
 
@@ -42,11 +43,16 @@ static const size_t METAINFO_LENGTH = 2;
 
 static const size_t PROCESSOR_DUMP_BYTES_PER_LINE = 4;
 
-static const size_t PROCESSOR_DUMP_RAM_BYTES_PER_LINE = 20;
+static const size_t PROCESSOR_DUMP_RAM_BYTES_PER_LINE = 8;
 
-static const size_t PROCESSOR_RAM_SIZE = PROCESSOR_DUMP_RAM_BYTES_PER_LINE * PROCESSOR_DUMP_RAM_BYTES_PER_LINE;
+static const size_t PROCESSOR_RAM_SQR_SIZE = 100;
+
+static const size_t PROCESSOR_RAM_SIZE = PROCESSOR_RAM_SQR_SIZE * PROCESSOR_RAM_SQR_SIZE;
 
 static const size_t PROCESSOR_DUMP_REG_CNT_PER_LINE = 5;
+
+static const int GUI_WINDOW_WIDTH = 600;
+static const int GUI_WINDOW_HEIGHT = 600;
 
 processor_err_t _processor_verify_metadata(processor_t* proc);
 
@@ -696,33 +702,54 @@ extern cmd_callback_err_t cmd_draw(processor_t* proc, ATTR_UNUSED command_data_t
     utils_assert(proc);
 
     processor_err_t err = PROCESSOR_ERR_NONE;
+    //
+    // const char header[] = " proc vram ";
+    //
+    // for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE - SIZEOF(header); ++i)
+    //     utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "==");
+    //
+    // utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "%s", header);
+    //
+    // for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE - SIZEOF(header); ++i)
+    //     utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "==");
+    //
+    // fprintf(stdout, "\n");
+    //
+    // for(size_t rami = 0; rami < PROCESSOR_RAM_SIZE; ++rami) {
+    //     int ch = proc->ram[rami];
+    //     if(isgraph(ch))
+    //         utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "%c ", proc->ram[rami]);
+    //     else
+    //         fprintf(stdout, "  ");
+    //     if((rami + 1) % PROCESSOR_DUMP_RAM_BYTES_PER_LINE == 0)
+    //         fprintf(stdout, "\n");
+    // }
+    //
+    // for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE + 2 * SIZEOF(header); ++i)
+    //     utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "=");
+    //
+    // fprintf(stdout, "\n\n");
 
-    const char header[] = " proc vram ";
 
-    for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE - SIZEOF(header); ++i)
-        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "==");
+    if(utils_gui_init(GUI_WINDOW_WIDTH, GUI_WINDOW_HEIGHT) != GUI_ERR_SUCCESS)
+        return { CMD_CALLBACK_ERR, err };
 
-    utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "%s", header);
+    utils_gui_set_coord_origin(0, 0);
+        
+    while(utils_gui_event_loop() == GUI_STATUS_CONTINUE) {
+        utils_gui_clear_render(GUI_COLOR_BLACK);
+        
+        if(
+            utils_gui_render_array(
+                proc->ram, 
+                PROCESSOR_RAM_SQR_SIZE, 
+                PROCESSOR_RAM_SQR_SIZE
+            ) != GUI_ERR_SUCCESS
+        )
+            return { CMD_CALLBACK_ERR, err };
 
-    for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE - SIZEOF(header); ++i)
-        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "==");
-
-    fprintf(stdout, "\n");
-
-    for(size_t rami = 0; rami < PROCESSOR_RAM_SIZE; ++rami) {
-        int ch = proc->ram[rami];
-        if(isgraph(ch))
-            utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_WHITE, "%c ", proc->ram[rami]);
-        else
-            fprintf(stdout, "  ");
-        if((rami + 1) % PROCESSOR_DUMP_RAM_BYTES_PER_LINE == 0)
-            fprintf(stdout, "\n");
+        utils_gui_show();
     }
-
-    for(unsigned i = 0; i < PROCESSOR_DUMP_RAM_BYTES_PER_LINE + 2 * SIZEOF(header); ++i)
-        utils_colored_fprintf(stdout, ANSI_COLOR_BOLD_GREEN, "=");
-
-    fprintf(stdout, "\n\n");
 
     return { CMD_CALLBACK_CONTINUE, err };
 }

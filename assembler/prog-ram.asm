@@ -1,7 +1,7 @@
 IN
 POPR  S0  # R
 
-PUSH  20  
+PUSH  100  
 POPR  S1  # width
 
 PUSHR S1
@@ -9,7 +9,7 @@ PUSH  2
 DIV
 POPR  S3  # center_x
 
-PUSH  20  
+PUSH  100  
 POPR  S2  # height
 
 PUSHR S2
